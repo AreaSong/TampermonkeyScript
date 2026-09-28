@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AreaSong
 // @namespace    AreaSong
-// @version      0.2.9
+// @version      0.2.10
 // @author       AreaSong
 // @description  🫧 目前已经支持的平台：【超星学习通「功能基本完成」】【知到智慧树「目前只支持答题」】。🚀 目前已经具有的功能包括：▶️视频自动观看，跳转下一个任务点，📄章节测试、作业自动完成，无答案自动保存，💯考试自动完成，自动切换、保存。使用脚本请进入对应平台的页面。
 // @license      MIT
@@ -597,6 +597,32 @@
     }
     return lastResult;
   };
+  const BANK_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const asTextList = (value) => (Array.isArray(value) ? value : [])
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+  const readReturnedQuestion = (data) => {
+    if (!data || typeof data !== "object") return null;
+    if (data.question && typeof data.question === "object") return data.question;
+    if (data.title || Array.isArray(data.options)) return data;
+    return null;
+  };
+  const collectBankPreview = (answerData, question) => {
+    const data = answerData && answerData.data && typeof answerData.data === "object" ? answerData.data : {};
+    const answers = asTextList(data.answer);
+    const returned = readReturnedQuestion(data);
+    const title = String((returned && returned.title) || (question && question.title) || "").trim();
+    const options = asTextList((returned && returned.options) || (question && question.optionsText));
+    const previewAnswers = asTextList((returned && returned.answers) || answers);
+    if (!title && !options.length && !previewAnswers.length) return null;
+    return { title, options, answers: previewAnswers };
+  };
+  const isCorrectOption = (option, index, answers) => answers.some((answer) => {
+    const text = String(answer || "").trim();
+    if (!text) return false;
+    if (text === String(option || "").trim()) return true;
+    return /^[A-Za-z]$/.test(text) && BANK_LETTERS[index] === text.toUpperCase();
+  });
   const applySearchResult = (question, answerData, options = {}) => {
     const fillQuestion = options.fillQuestion || question.fillQuestion;
     const addLog = options.addLog;
@@ -605,6 +631,7 @@
     if (answerData.code === 200 && answers.some((answer) => String(answer).trim())) {
       question.answer = answers;
       question.answerStatus = "success";
+      question.bankPreview = collectBankPreview(answerData, question);
       if (fillQuestion)
         fillQuestion(question);
       if (addLog) {
@@ -618,6 +645,7 @@
     const message = answerData.code === 200 ? "未查询到答案" : answerData.msg || "查询失败";
     question.answerStatus = "error";
     question.answer = [message];
+    question.bankPreview = null;
     if (addLog)
       addLog(`${label}搜索失败：${message}`, "danger");
     return false;
@@ -628,6 +656,7 @@
     const logStore = useLogStore();
     question.answerStatus = "searching";
     question.answer = [];
+    question.bankPreview = null;
     const answerData = await getAnswer(question, { skipDelay: true });
     applySearchResult(question, answerData, { addLog: logStore.addLog });
   };
@@ -852,7 +881,6 @@
   const _hoisted_2$3 = /* @__PURE__ */ vue.createStaticVNode('<div class="answer-legend" aria-label="答案状态说明"><span class="answer-result--success">有答案</span><span class="answer-result--searching">查询中</span><span class="answer-result--pending">等待中</span><span class="answer-result--error">未找到 / 失败</span></div>', 1);
   const _hoisted_3$1 = { key: 0 };
   const _hoisted_4$2 = { key: 1 };
-  const _hoisted_5 = ["innerHTML"];
   const _sfc_main$6 = /* @__PURE__ */ vue.defineComponent({
     __name: "QuestionTable",
     props: {
@@ -872,6 +900,27 @@
         } finally {
           retryingAll.value = false;
         }
+      };
+      const renderHitPreview = (question) => {
+        const preview = question && question.bankPreview;
+        if (!preview) {
+          return vue.createElementVNode("div", null, asTextList(question && question.answer).join(" / "));
+        }
+        const children = [];
+        if (preview.title) {
+          children.push(vue.createElementVNode("div", { class: "bank-hit-title" }, preview.title));
+        }
+        if (preview.options.length) {
+          children.push(vue.createElementVNode("div", { class: "bank-hit-options" }, preview.options.map((option, index) => vue.createElementVNode("div", {
+            class: vue.normalizeClass(["bank-hit-option", isCorrectOption(option, index, preview.answers) ? "is-correct" : ""])
+          }, [
+            vue.createElementVNode("span", { class: "bank-hit-letter" }, BANK_LETTERS[index] || String(index + 1)),
+            vue.createElementVNode("span", null, option)
+          ]))));
+        } else if (preview.answers.length) {
+          children.push(vue.createElementVNode("div", { class: "bank-hit-answers" }, `答案：${preview.answers.join(" / ")}`));
+        }
+        return vue.createElementVNode("div", { class: "bank-hit" }, children);
       };
       return (_ctx, _cache) => {
         const _component_el_button = vue.resolveComponent("el-button");
@@ -971,22 +1020,24 @@
                 vue.createVNode(_component_el_table_column, {
                   prop: "title",
                   label: "题目",
-                  width: "370"
+                  width: "220"
                 }),
                 vue.createVNode(_component_el_table_column, {
                   prop: "answer",
-                  label: "答案",
-                  width: "215"
+                  label: "题库返回",
+                  "min-width": "280"
                 }, {
                   default: vue.withCtx((scope) => [
                     vue.createElementVNode("div", { class: "answer-cell" }, [
                       vue.createElementVNode("div", {
-                        class: vue.normalizeClass(["answer-result", `answer-result--${getAnswerStatus(scope.row)}`])
+                        class: vue.normalizeClass([
+                          "answer-result",
+                          getAnswerStatus(scope.row) === "success" ? "" : `answer-result--${getAnswerStatus(scope.row)}`
+                        ])
                       }, [
-                        getAnswerStatus(scope.row) === "pending" ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_3$1, "等待查询…")) : getAnswerStatus(scope.row) === "searching" ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_4$2, "正在查询答案…")) : (vue.openBlock(), vue.createElementBlock("div", {
-                          key: 2,
-                          innerHTML: scope.row.answer.join()
-                        }, null, 8, _hoisted_5))
+                        getAnswerStatus(scope.row) === "pending" ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_3$1, "等待查询…")) : getAnswerStatus(scope.row) === "searching" ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_4$2, "正在查询答案…")) : (vue.openBlock(), vue.createElementBlock("div", { key: 2 }, [
+                          renderHitPreview(scope.row)
+                        ]))
                       ], 2),
                       getAnswerStatus(scope.row) === "error" ? (vue.openBlock(), vue.createBlock(_component_el_button, {
                         key: 3,
@@ -6577,7 +6628,7 @@
     return GM_addStyle(t), t;
   };
   cssLoader("ElementPlus");
-  const bankSelectCss = ".main-page .bank-select-wrap{margin:2px 0 10px}.main-page .bank-select-label{margin:0 0 6px;color:#4e5969;font-size:12px;line-height:18px}.main-page .bank-select{display:flex;width:100%}.main-page .bank-select .el-radio-button{flex:1}.main-page .bank-select .el-radio-button__inner{width:100%;padding:6px 8px;font-size:12px}.main-page .retry-bar{display:flex;justify-content:flex-end;margin:0 0 8px}.main-page .answer-cell{display:flex;flex-direction:column;align-items:flex-start;gap:4px}.main-page .answer-retry{padding:0;height:auto}";
+  const bankSelectCss = ".main-page .bank-select-wrap{margin:2px 0 10px}.main-page .bank-select-label{margin:0 0 6px;color:#4e5969;font-size:12px;line-height:18px}.main-page .bank-select{display:flex;width:100%}.main-page .bank-select .el-radio-button{flex:1}.main-page .bank-select .el-radio-button__inner{width:100%;padding:6px 8px;font-size:12px}.main-page .retry-bar{display:flex;justify-content:flex-end;margin:0 0 8px}.main-page .answer-cell{display:flex;flex-direction:column;align-items:flex-start;gap:4px}.main-page .answer-retry{padding:0;height:auto}.main-page .question-list .el-table__cell{white-space:normal;vertical-align:top}.main-page .bank-hit{display:grid;gap:4px;color:#1f2329;font-size:12px;line-height:1.5;font-weight:400}.main-page .bank-hit-title{font-weight:600}.main-page .bank-hit-options{display:grid;gap:2px}.main-page .bank-hit-option{display:flex;gap:6px;align-items:flex-start}.main-page .bank-hit-option.is-correct{color:#15803d;font-weight:600}.main-page .bank-hit-letter{flex:0 0 16px;color:#86909c}.main-page .bank-hit-answers{color:#15803d;font-weight:600}";
   const layoutCss = '.main-page .guide-page{box-sizing:border-box;max-height:min(400px,calc(100vh - 160px));max-height:min(400px,calc(100dvh - 160px));overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;padding:2px 4px 2px 0;color:#4e5969;font-size:12px;line-height:1.7;scrollbar-width:thin;scrollbar-color:#c7d7eb transparent}.main-page .guide-page:focus-visible{outline:2px solid #176ae5;outline-offset:2px;border-radius:8px}.main-page .guide-header{margin:0 0 10px;padding:11px 12px;border:1px solid #d9e8fc;border-radius:9px;background:linear-gradient(120deg,#edf5ff 0%,#f8fbff 100%)}.main-page .guide-heading-row{display:flex;align-items:center;justify-content:space-between;gap:8px}.main-page .guide-title{margin:0;color:#174b94;font-size:15px;font-weight:600;line-height:1.6}.main-page .guide-tag{flex-shrink:0;padding:1px 7px;border:1px solid #d4e5fc;border-radius:20px;background-color:#fff;color:#2262b5;font-size:10px;line-height:18px}.main-page .guide-subtitle{margin:3px 0 0;color:#61758e;font-size:11px}.main-page .guide-list{display:grid;gap:8px;margin:0;padding:0;list-style:none}.main-page .guide-card{min-width:0;padding:10px;border:1px solid #e4eaf2;border-radius:8px;background-color:#fff}.main-page .guide-card-heading{display:flex;align-items:center;gap:8px;margin-bottom:6px}.main-page .guide-number{display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;height:24px;border-radius:7px;background-color:#eaf3ff;color:#176ae5;font-size:11px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}.main-page .guide-card-title{margin:0;color:#263a55;font-size:12px;font-weight:600;line-height:1.6}.main-page .guide-copy{margin:0;overflow-wrap:anywhere}.main-page .guide-flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:10px 0 0;padding:9px 4px 7px;border-radius:7px;background-color:#f3f7fd;list-style:none}.main-page .guide-flow-step{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;color:#3a5a83;font-size:10px;line-height:18px;text-align:center}.main-page .guide-flow-step+.guide-flow-step:before{position:absolute;top:8px;left:-5px;width:5px;height:5px;border-top:1px solid #9cb8da;border-right:1px solid #9cb8da;content:"";transform:rotate(45deg)}.main-page .guide-flow-number{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid #d5e4f8;border-radius:50%;background-color:#fff;color:#176ae5;font-size:11px;font-weight:600;line-height:1}.main-page{--app-font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";--el-font-family: var(--app-font-family);z-index:100003;position:fixed;color:#1f2329;font-family:var(--app-font-family)!important;font-size:14px;line-height:1.5715;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}.main-page *,.main-page input,.main-page button,.main-page textarea{font-family:var(--app-font-family)!important;letter-spacing:0}.main-page .el-card,.main-page .el-tabs,.main-page .el-text,.main-page .el-button,.main-page .el-input,.main-page .el-input__inner,.main-page .el-input-number,.main-page .el-table{font-family:var(--app-font-family)!important}.main-page .overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1001}.main-page .el-card{border:0}.main-page .card-header{display:flex;justify-content:space-between;flex-direction:row;align-items:center;margin:0;padding:0;cursor:move}.main-page .card-header .title{font-size:14px;display:flex;align-items:center;justify-content:center;font-weight:500}.main-page .warning-icon{margin-left:5px}.main-page .zoom-icon{cursor:pointer}.main-page .zoom-icon.is-spaced{margin-left:8px}.main-page .minus{margin:5px 10px -10px 0}.main-page .compact-divider{margin:0}.main-page .demo-tabs{display:initial}.main-page .el-card__header{background-color:#1f71e0;color:#fff;padding:7px 10px 7px 16px;margin:0}.main-page .el-card__body{padding:0 16px 20px}.main-page .el-tabs__nav-wrap:after{height:1px}.main-page .el-tabs__active-bar{background-color:#176ae5}.main-page .el-tabs__item{font-size:13px;height:34px}.main-page .el-tabs__item.is-top{font-weight:400;color:#4e5969;padding:0 8px 0 12px}.main-page .el-tabs__item.is-active{font-weight:500;color:#176ae5;padding:0 8px 0 12px}.main-page .script-home{padding-top:2px}.main-page .announcement-board{box-sizing:border-box;margin:2px 0 10px;padding:8px 10px;border:1px solid #bae0ff;border-radius:6px;background-color:#e6f4ff}.main-page .announcement-heading{display:flex;align-items:center;gap:6px;margin-bottom:4px;color:#0958d9;font-size:12px;font-weight:600;line-height:20px}.main-page .announcement-heading:before{content:"";width:6px;height:6px;flex:0 0 auto;border-radius:50%;background-color:#1677ff}.main-page .announcement-list{display:grid;gap:3px;margin:0;padding:0;list-style:none}.main-page .announcement-item{color:#1f2329;font-size:12px;line-height:20px;word-break:break-word}.main-page .log .el-text{font-weight:400;white-space:normal}.main-page .log-time{font-weight:400}.main-page .log-action-link{color:#176ae5;cursor:pointer;text-decoration:none}.main-page .log-action-link:hover{color:#409eff;text-decoration:underline}.main-page .log-divider{margin:0}.main-page .token-input,.main-page .question-list{font-size:12px}.main-page .token-label{border-radius:0}.main-page .question_table{width:625px}.main-page .answer-legend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:10px 2px 8px;font-size:11px;line-height:18px}.main-page .answer-legend>span{display:inline-flex;align-items:center;gap:5px}.main-page .answer-legend>span:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}.main-page .answer-result{line-height:1.7;overflow-wrap:anywhere}.main-page .answer-result--success{color:#15803d}.main-page .answer-result--searching{color:#a15c08}.main-page .answer-result--pending{color:#697586}.main-page .answer-result--error{color:#c73e38}.main-page .setting{margin-top:-8px;font-size:14px}.main-page .setting-section-title{font-size:13px}.main-page .setting-checkbox{margin-bottom:6px}.main-page .setting-number{margin-top:6px}.main-page .setting .el-form-item{margin-bottom:0}\n';
   const hookWebpack = () => {
     let originCall = _unsafeWindow.Function.prototype.call;

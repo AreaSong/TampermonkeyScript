@@ -35,16 +35,20 @@ const miss = (msg) => ({
   msg
 });
 
-const ok = (answers, total, extra = {}) => ({
-  code: 200,
-  data: {
-    answer: answers,
-    num: String(total),
-    usenum: "1"
-  },
-  msg: extra.msg || "ok",
-  ...extra
-});
+const ok = (answers, total, extra = {}) => {
+  const { msg, question, ...rest } = extra;
+  return {
+    code: 200,
+    data: {
+      answer: answers,
+      num: String(total),
+      usenum: "1",
+      ...(question ? { question } : {})
+    },
+    msg: msg || "ok",
+    ...rest
+  };
+};
 
 const TEMPLATE = {
   说明: "type：0单选 1多选 2填空 3判断 4简答。options 填全部选项正文。answers 填正确项正文，不要写 A/B/C。填好 questions 后，到管理页一键导入。",
@@ -204,7 +208,7 @@ const handleSearch = (questions, body) => {
   if (!answers.length) {
     return miss("未查询到答案");
   }
-  return ok(answers, questions.length);
+  return ok(answers, questions.length, { question: probeQuestion(matched) });
 };
 
 const probeQuestion = (item) => {
