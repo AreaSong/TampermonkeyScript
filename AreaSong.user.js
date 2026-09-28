@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AreaSong
 // @namespace    AreaSong
-// @version      0.2.8
+// @version      0.2.9
 // @author       AreaSong
 // @description  🫧 目前已经支持的平台：【超星学习通「功能基本完成」】【知到智慧树「目前只支持答题」】。🚀 目前已经具有的功能包括：▶️视频自动观看，跳转下一个任务点，📄章节测试、作业自动完成，无答案自动保存，💯考试自动完成，自动切换、保存。使用脚本请进入对应平台的页面。
 // @license      MIT
@@ -468,6 +468,70 @@
       { name: "题库", url: "http://api.tikuhai.com/search", token: "" }
     ];
   };
+  const BANK_TYPE_MAP = {
+    "0": "0",
+    "1": "1",
+    "2": "2",
+    "3": "3",
+    "4": "4",
+    "6": "4",
+    单选题: "0",
+    多选题: "1",
+    填空题: "2",
+    判断题: "3",
+    简答题: "4"
+  };
+  const toLocalBankOrigin = (url2) => {
+    const raw = String(url2 || "").trim().replace(/\/$/, "");
+    if (!raw) return "http://127.0.0.1:8787";
+    return raw.replace(/\/search$/i, "") || "http://127.0.0.1:8787";
+  };
+  const getLocalBankConfig = () => {
+    const apis = useConfigStore().queryApis || [];
+    const local = apis.find((api) => isLocalQuestionBank(api.url));
+    return {
+      origin: toLocalBankOrigin(local && local.url),
+      key: (local && local.token) || ""
+    };
+  };
+  const collectLocalQuestion = (question, answers) => {
+    const title = String((question && question.title) || "").trim();
+    const nextAnswers = (Array.isArray(answers) ? answers : [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+    if (!title || !nextAnswers.length) return null;
+    const type = BANK_TYPE_MAP[String((question && question.type) || "")] || "";
+    let options = Array.isArray(question.optionsText)
+      ? question.optionsText.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    if (type === "3" && options.length < 2) options = ["正确", "错误"];
+    return { title, type, options, answers: nextAnswers };
+  };
+  const postLocalBank = (path, body) => new Promise((resolve) => {
+    const { origin, key } = getLocalBankConfig();
+    _GM_xmlhttpRequest({
+      url: `${origin}${path}`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: JSON.stringify(key ? { ...body, key } : body),
+      timeout: 5e3,
+      onload: (response) => {
+        try {
+          resolve(JSON.parse(response.responseText));
+        } catch (error) {
+          resolve(null);
+        }
+      },
+      onerror: () => resolve(null),
+      ontimeout: () => resolve(null)
+    });
+  });
+  const archiveRemoteHit = async (question, answers) => {
+    const payload = collectLocalQuestion(question, answers);
+    if (!payload) return null;
+    const result = await postLocalBank("/questions", payload);
+    return result && result.code === 200 ? result : null;
+  };
   const getAnswerFrom = async (question, api, options = {}) => {
     var _a;
     const configStore = useConfigStore();
@@ -519,9 +583,17 @@
     for (const api of getSearchApis()) {
       const result = await getAnswerFrom(question, api, options);
       lastResult = result;
-      if (result.code !== 10003) {
-        return result;
+      if (result.code === 10003) continue;
+      const answers = result && result.data && Array.isArray(result.data.answer) ? result.data.answer : [];
+      const hit = result.code === 200 && answers.some((answer) => String(answer).trim());
+      if (hit && !isLocalQuestionBank(api.url)) {
+        const saved = await archiveRemoteHit(question, answers);
+        if (saved) {
+          result.archived = true;
+          result.archivedCreated = Boolean(saved.created);
+        }
       }
+      return result;
     }
     return lastResult;
   };
@@ -535,8 +607,12 @@
       question.answerStatus = "success";
       if (fillQuestion)
         fillQuestion(question);
-      if (addLog)
-        addLog(`${label}搜索成功`, "success");
+      if (addLog) {
+        const note = answerData.archived
+          ? (answerData.archivedCreated ? "，已收入本地题库" : "，已更新本地题库")
+          : "";
+        addLog(`${label}搜索成功${note}`, "success");
+      }
       return true;
     }
     const message = answerData.code === 200 ? "未查询到答案" : answerData.msg || "查询失败";

@@ -379,6 +379,10 @@ const route = async (req, res) => {
     json(res, 200, questions);
     return;
   }
+  if (req.method === "GET" && (url.pathname === "/export" || url.pathname === "/export.json")) {
+    downloadJson(res, "areasong-questions.json", questions);
+    return;
+  }
   if (req.method === "POST" && url.pathname === "/search") {
     const body = await readBody(req);
     json(res, 200, handleSearch(questions, body));
@@ -431,6 +435,7 @@ server.listen(PORT, HOST, () => {
   console.log("搜题：POST /search");
   console.log("试搜：POST /probe");
   console.log("加题：POST /questions");
+  console.log("导出：GET  /export");
   console.log("检查：GET  /health");
   console.log(`题库文件：${DATA_FILE}`);
   if (ACCESS_KEY) {

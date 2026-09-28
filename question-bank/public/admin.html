@@ -565,6 +565,7 @@
             <span class="status" id="bank-status"></span>
           </div>
           <div class="actions">
+            <button type="button" class="ghost tiny" id="export-bank">导出题库</button>
             <button type="button" class="ghost tiny" id="expand-all">全部展开</button>
             <button type="button" class="ghost tiny" id="collapse-all">全部收起</button>
           </div>
@@ -1245,6 +1246,22 @@
       if (!button) return;
       state.filterType = button.dataset.filter;
       renderList();
+    });
+
+    document.querySelector("#export-bank").addEventListener("click", async () => {
+      try {
+        const questions = await (await fetch("/questions")).json();
+        if (!Array.isArray(questions)) throw new Error("导出失败");
+        const blob = new Blob([`${JSON.stringify(questions, null, 2)}\n`], { type: "application/json" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "areasong-questions.json";
+        link.click();
+        URL.revokeObjectURL(link.href);
+        setStatus(`已导出 ${questions.length} 题`, true, "bank");
+      } catch (error) {
+        setStatus(error.message || "导出失败", false, "bank");
+      }
     });
 
     document.querySelector("#expand-all").addEventListener("click", () => {
