@@ -17,252 +17,550 @@
       --bad: #b42318;
     }
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
       margin: 0;
+      overflow: hidden;
       color: var(--ink);
-      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Songti SC", serif;
       background:
-        radial-gradient(circle at top left, rgba(196, 92, 38, 0.08), transparent 28%),
-        linear-gradient(180deg, #efe6d8 0%, var(--paper) 180px);
+        radial-gradient(circle at top left, rgba(196, 92, 38, 0.08), transparent 22%),
+        linear-gradient(180deg, #efe6d8 0%, var(--paper) 160px);
+      font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
     }
     main {
       display: grid;
-      gap: 20px;
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 28px 20px 48px;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 14px;
+      height: 100%;
+      max-width: none;
+      padding: 16px 18px 16px;
     }
-    h1, h2, p, label, button, input, select, textarea, li {
-      font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
-    }
-    h1 { margin: 0; font-size: 28px; letter-spacing: 0.04em; }
-    .lede { margin: 8px 0 0; color: var(--muted); }
+    h1 { margin: 0; font-size: 24px; letter-spacing: 0.04em; font-family: Palatino, "Songti SC", serif; }
+    h2 { margin: 0 0 10px; font-size: 18px; }
+    .lede { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+    .toolbar, .actions, .type-tabs, .pager { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .toolbar { justify-content: space-between; }
     .grid {
+      min-height: 0;
       display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-      gap: 18px;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr);
+      gap: 14px;
     }
     .card {
-      padding: 18px;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
       border: 1px solid var(--line);
       border-radius: 18px;
       background: var(--card);
-      box-shadow: 12px 16px 0 rgba(31, 78, 121, 0.05);
+      box-shadow: 10px 12px 0 rgba(31, 78, 121, 0.05);
     }
+    .card-body { min-height: 0; overflow: auto; flex: 1; }
     label { display: block; margin: 0 0 6px; font-size: 13px; font-weight: 600; }
-    input, select, textarea {
+    input, textarea, select {
       width: 100%;
-      margin-bottom: 14px;
+      margin: 0;
       padding: 10px 12px;
       border: 1px solid #cfd8e6;
       border-radius: 10px;
-      color: var(--ink);
       background: #fff;
+      color: var(--ink);
+      font: inherit;
       font-size: 14px;
     }
-    textarea { min-height: 92px; resize: vertical; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .actions { display: flex; gap: 10px; align-items: center; }
-    button {
+    textarea { min-height: 72px; resize: vertical; }
+    textarea.code {
+      flex: 1;
+      min-height: 180px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      resize: none;
+    }
+    button, .file-btn {
       border: 0;
       border-radius: 999px;
-      padding: 10px 16px;
+      padding: 9px 14px;
       background: var(--accent);
       color: #fff;
       font-weight: 600;
       cursor: pointer;
     }
-    button.ghost { background: #ece7de; color: var(--ink); }
-    button.danger { background: var(--bad); }
-    .hint { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.6; }
-    .status { min-height: 20px; font-size: 13px; }
+    button.ghost, .file-btn { background: #ece7de; color: var(--ink); }
+    button.danger { background: var(--bad); color: #fff; }
+    button.tiny { padding: 6px 10px; font-size: 12px; }
+    .hint { margin: 0 0 10px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .status { min-height: 18px; margin: 8px 0 0; font-size: 13px; }
     .status.ok { color: var(--ok); }
     .status.bad { color: var(--bad); }
-    .examples {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 14px;
+    .type-tabs { margin: 0 0 12px; }
+    .type-tabs button { background: #efe4d2; color: var(--accent-2); }
+    .type-tabs button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+    .rule {
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border-left: 3px solid var(--accent-2);
+      border-radius: 0 12px 12px 0;
+      background: #f3ebe0;
+      color: #5a4633;
+      font-size: 13px;
+      line-height: 1.55;
     }
-    .examples button {
-      padding: 7px 10px;
-      background: #efe4d2;
-      color: var(--accent-2);
-      font-size: 12px;
-    }
-    .list { display: grid; gap: 10px; }
-    .item {
+    .option-row, .blank-row {
       display: grid;
-      gap: 6px;
-      padding: 12px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: #fff;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
     }
-    .item b { font-size: 15px; }
-    .meta { color: var(--muted); font-size: 12px; }
-    @media (max-width: 860px) {
-      .grid, .row { grid-template-columns: 1fr; }
+    .judge-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .judge-row button[aria-pressed="true"] { background: var(--ok); }
+    .field { margin-bottom: 12px; }
+    .list { display: grid; gap: 8px; }
+    .item { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+    .meta { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+    .pager { justify-content: space-between; margin-top: 10px; color: var(--muted); font-size: 12px; }
+    @media (max-width: 1200px) {
+      body { overflow: auto; }
+      main { height: auto; }
+      .grid { grid-template-columns: 1fr 1fr; }
+      textarea.code { min-height: 260px; }
+    }
+    @media (max-width: 800px) {
+      .grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <main>
-    <header>
-      <h1>AreaSong 题库</h1>
-      <p class="lede">在网页里填题保存即可。答案写正确选项的正文，不要只写 A / B / C。</p>
+    <header class="toolbar">
+      <div>
+        <h1>AreaSong 题库</h1>
+        <p class="lede">左边手录，中间贴 JSON，右边查题。题多了分页，不会把页面无限拉长。</p>
+      </div>
     </header>
     <section class="grid">
       <form class="card" id="form">
         <h2>添加题目</h2>
-        <p class="hint">点下面的例子会自动填入表单，改完再点保存。同一题干再保存一次会覆盖旧答案。</p>
-        <div class="examples">
-          <button type="button" data-example="single">单选例子</button>
-          <button type="button" data-example="multi">多选例子</button>
-          <button type="button" data-example="judge">判断例子</button>
-          <button type="button" data-example="blank">填空例子</button>
-        </div>
-        <label for="title">题干</label>
-        <textarea id="title" required placeholder="绿色植物在光照下释放氧气，主要是因为"></textarea>
-        <div class="row">
-          <div>
-            <label for="type">题型</label>
-            <select id="type">
-              <option value="0">单选</option>
-              <option value="1">多选</option>
-              <option value="2">填空</option>
-              <option value="3">判断</option>
-              <option value="4">简答</option>
-            </select>
+        <div class="card-body">
+          <div class="type-tabs" id="type-tabs">
+            <button type="button" data-type="0" aria-pressed="true">单选</button>
+            <button type="button" data-type="1">多选</button>
+            <button type="button" data-type="3">判断</button>
+            <button type="button" data-type="2">填空</button>
+            <button type="button" data-type="4">简答</button>
           </div>
-          <div>
-            <label for="options">全部选项，一行一个</label>
-            <textarea id="options" placeholder="呼吸作用&#10;光合作用&#10;蒸腾作用"></textarea>
-          </div>
+          <p class="rule" id="rule"></p>
+          <label for="title">题干</label>
+          <textarea id="title" class="field" required placeholder="把完整题干贴在这里"></textarea>
+          <div id="type-fields"></div>
         </div>
-        <label for="answers">正确答案，一行一个</label>
-        <textarea id="answers" required placeholder="光合作用"></textarea>
         <div class="actions">
           <button type="submit">保存到题库</button>
-          <button type="reset" class="ghost">清空</button>
-          <p class="status" id="status"></p>
+          <button type="button" class="ghost" id="reset">清空</button>
         </div>
+        <p class="status" id="status"></p>
       </form>
       <section class="card">
+        <h2>模版 / 粘贴导入</h2>
+        <p class="hint">把模版复制给 AI，或把 AI 写好的 JSON 直接贴回来。导入前可先检查语法。</p>
+        <div class="actions" style="margin-bottom:10px;">
+          <button type="button" class="ghost" id="load-template">载入模版</button>
+          <button type="button" class="ghost" id="copy-json">复制当前 JSON</button>
+          <button type="button" class="ghost" id="copy-prompt">复制 AI 说明</button>
+          <label class="file-btn">选择文件<input id="import-file" type="file" accept=".json,application/json" hidden></label>
+        </div>
+        <textarea class="code" id="json-input" spellcheck="false" placeholder='{"questions":[]}'></textarea>
+        <div class="actions" style="margin-top:10px;">
+          <button type="button" class="ghost" id="check-json">检查语法</button>
+          <button type="button" id="import-json">导入到题库</button>
+        </div>
+        <p class="status" id="json-status"></p>
+      </section>
+      <section class="card">
         <h2>当前题库 <span id="count"></span></h2>
-        <p class="hint">保存后脚本下次搜题会直接读到，不用重启服务。</p>
-        <div class="list" id="list"></div>
+        <input id="search" class="field" placeholder="搜索题干或答案">
+        <div class="card-body list" id="list"></div>
+        <div class="pager">
+          <span id="page-info">0 题</span>
+          <div class="actions">
+            <button type="button" class="ghost tiny" id="prev-page">上一页</button>
+            <button type="button" class="ghost tiny" id="next-page">下一页</button>
+          </div>
+        </div>
       </section>
     </section>
   </main>
   <script>
-    const examples = {
-      single: {
-        title: "绿色植物在光照下释放氧气，主要是因为",
-        type: "0",
-        options: "呼吸作用\n光合作用\n蒸腾作用\n渗透作用",
-        answers: "光合作用"
-      },
-      multi: {
-        title: "下列属于可再生资源的是",
-        type: "1",
-        options: "煤炭\n太阳能\n风能\n石油",
-        answers: "太阳能\n风能"
-      },
-      judge: {
-        title: "地球绕太阳公转一周大约是一年",
-        type: "3",
-        options: "正确\n错误",
-        answers: "正确"
-      },
-      blank: {
-        title: "中国的首都是",
-        type: "2",
-        options: "",
-        answers: "北京"
-      }
-    };
-
-    const lines = (value) => value.split(/\n/).map((item) => item.trim()).filter(Boolean);
+    const PAGE_SIZE = 8;
     const typeName = { "0": "单选", "1": "多选", "2": "填空", "3": "判断", "4": "简答" };
+    const rules = {
+      "0": "单选：可添加任意个选项，点左侧圆点标记唯一正确答案。",
+      "1": "多选：可添加任意个选项，勾选所有正确项。",
+      "3": "判断：只选正确或错误。",
+      "2": "填空：一空一行，空不够就点添加空。",
+      "4": "简答：直接写参考答案全文。"
+    };
+    const aiPrompt = `请把我给的题目整理成 JSON，只输出 JSON，不要解释。格式：
+{
+  "questions": [
+    {
+      "title": "题干原文",
+      "type": "0",
+      "options": ["选项正文1", "选项正文2"],
+      "answers": ["正确选项正文"]
+    }
+  ]
+}
+规则：
+- type：0单选，1多选，2填空，3判断，4简答
+- 单选/多选的 answers 必须是 options 里的原文，禁止只写 A/B/C
+- 多选 answers 可以有多项
+- 判断 options 固定为 ["正确","错误"]，answers 为 ["正确"] 或 ["错误"]
+- 填空 options 为 []，answers 按空的顺序
+- 简答 options 为 []，answers 为一整段文字`;
+
+    const state = {
+      type: "0",
+      options: [{ text: "", correct: true }, { text: "", correct: false }],
+      blanks: [""],
+      judge: "正确",
+      essay: "",
+      questions: [],
+      query: "",
+      page: 1
+    };
+
+    const fields = document.querySelector("#type-fields");
     const status = document.querySelector("#status");
+    const jsonStatus = document.querySelector("#json-status");
+    const jsonInput = document.querySelector("#json-input");
     const list = document.querySelector("#list");
-    const count = document.querySelector("#count");
+    const escapeHtml = (value) => String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
 
-    const setStatus = (text, ok) => {
-      status.textContent = text;
-      status.className = `status ${ok ? "ok" : "bad"}`;
+    const setStatus = (node, text, ok) => {
+      node.textContent = text;
+      node.className = `status ${ok ? "ok" : "bad"}`;
     };
 
-    const fillExample = (key) => {
-      const example = examples[key];
-      document.querySelector("#title").value = example.title;
-      document.querySelector("#type").value = example.type;
-      document.querySelector("#options").value = example.options;
-      document.querySelector("#answers").value = example.answers;
-      setStatus("已填入例子，可以改成你的题目再保存", true);
+    const renderTabs = () => {
+      document.querySelectorAll("#type-tabs button").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.type === state.type));
+      });
+      document.querySelector("#rule").textContent = rules[state.type];
     };
 
-    const render = async () => {
-      const response = await fetch("/questions");
-      const questions = await response.json();
-      count.textContent = `(${questions.length})`;
-      list.innerHTML = questions.map((item, index) => `
-        <article class="item">
-          <b>${item.title}</b>
-          <div class="meta">${typeName[item.type] || item.type} · 答案：${(item.answers || []).join(" / ")}</div>
-          <div class="actions">
-            <button class="danger" data-index="${index}">删除</button>
+    const renderChoice = (multiple) => {
+      const rows = state.options.map((option, index) => `
+        <div class="option-row">
+          <input class="mark" type="${multiple ? "checkbox" : "radio"}" name="correct" ${option.correct ? "checked" : ""} data-index="${index}">
+          <input type="text" value="${escapeHtml(option.text)}" placeholder="选项 ${index + 1}" data-text="${index}">
+          <button type="button" class="ghost tiny" data-remove="${index}">删除</button>
+        </div>
+      `).join("");
+      fields.innerHTML = `${rows}<button type="button" class="ghost" id="add-option">添加选项</button>`;
+    };
+
+    const renderTypeFields = () => {
+      renderTabs();
+      if (state.type === "0" || state.type === "1") return renderChoice(state.type === "1");
+      if (state.type === "3") {
+        fields.innerHTML = `
+          <div class="judge-row">
+            <button type="button" data-judge="正确" aria-pressed="${state.judge === "正确"}">正确</button>
+            <button type="button" data-judge="错误" aria-pressed="${state.judge === "错误"}">错误</button>
+          </div>`;
+        return;
+      }
+      if (state.type === "2") {
+        fields.innerHTML = state.blanks.map((blank, index) => `
+          <div class="blank-row">
+            <span>第 ${index + 1} 空</span>
+            <input type="text" value="${escapeHtml(blank)}" placeholder="这一空的答案" data-blank="${index}">
+            <button type="button" class="ghost tiny" data-remove-blank="${index}">删除</button>
           </div>
+        `).join("") + `<button type="button" class="ghost" id="add-blank">添加空</button>`;
+        return;
+      }
+      fields.innerHTML = `<label for="essay">参考答案</label><textarea id="essay">${escapeHtml(state.essay)}</textarea>`;
+    };
+
+    const collectPayload = () => {
+      const title = document.querySelector("#title").value.trim();
+      if (!title) throw new Error("请填写题干");
+      if (state.type === "0" || state.type === "1") {
+        const options = state.options.map((item) => item.text.trim()).filter(Boolean);
+        const answers = state.options.filter((item) => item.correct && item.text.trim()).map((item) => item.text.trim());
+        if (options.length < 2) throw new Error("至少填写 2 个选项");
+        if (state.type === "0" && answers.length !== 1) throw new Error("单选必须点选 1 个正确答案");
+        if (state.type === "1" && answers.length < 1) throw new Error("多选至少勾选 1 个正确答案");
+        return { title, type: state.type, options, answers };
+      }
+      if (state.type === "3") return { title, type: "3", options: ["正确", "错误"], answers: [state.judge] };
+      if (state.type === "2") {
+        const answers = state.blanks.map((item) => item.trim()).filter(Boolean);
+        if (!answers.length) throw new Error("至少填写 1 个空");
+        return { title, type: "2", options: [], answers };
+      }
+      const essay = (document.querySelector("#essay")?.value || "").trim();
+      if (!essay) throw new Error("请填写简答答案");
+      return { title, type: "4", options: [], answers: [essay] };
+    };
+
+    const resetForm = () => {
+      document.querySelector("#title").value = "";
+      state.options = [{ text: "", correct: true }, { text: "", correct: false }];
+      state.blanks = [""];
+      state.judge = "正确";
+      state.essay = "";
+      renderTypeFields();
+    };
+
+    const filteredQuestions = () => {
+      const query = state.query.trim().toLowerCase();
+      return state.questions.map((item, index) => ({ item, index })).filter(({ item }) => {
+        if (!query) return true;
+        return `${item.title} ${(item.answers || []).join(" ")}`.toLowerCase().includes(query);
+      });
+    };
+
+    const renderList = () => {
+      const rows = filteredQuestions();
+      const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+      if (state.page > pages) state.page = pages;
+      const start = (state.page - 1) * PAGE_SIZE;
+      const pageRows = rows.slice(start, start + PAGE_SIZE);
+      document.querySelector("#count").textContent = `(${state.questions.length})`;
+      document.querySelector("#page-info").textContent = rows.length
+        ? `第 ${state.page}/${pages} 页 · 本页 ${pageRows.length} · 筛选 ${rows.length}`
+        : "没有匹配的题目";
+      list.innerHTML = pageRows.map(({ item, index }) => `
+        <article class="item">
+          <b>${escapeHtml(item.title)}</b>
+          <div class="meta">${typeName[item.type] || item.type} · 答案：${escapeHtml((item.answers || []).join(" / "))}</div>
+          <div class="actions"><button class="danger tiny" data-index="${index}">删除</button></div>
         </article>
       `).join("") || "<p class='hint'>还没有题目。</p>";
     };
 
-    document.querySelectorAll("[data-example]").forEach((button) => {
-      button.addEventListener("click", () => fillExample(button.dataset.example));
+    const loadQuestions = async () => {
+      state.questions = await (await fetch("/questions")).json();
+      renderList();
+    };
+
+    const inspectJson = (text) => {
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (error) {
+        throw new Error(`JSON 语法错误：${error.message}`);
+      }
+      const items = Array.isArray(parsed) ? parsed : parsed && parsed.questions;
+      if (!Array.isArray(items) || !items.length) throw new Error("需要非空数组，或 { questions: [...] }");
+      items.forEach((item, index) => {
+        if (!item || typeof item !== "object") throw new Error(`第 ${index + 1} 题不是对象`);
+        if (!String(item.title || item.question || "").trim()) throw new Error(`第 ${index + 1} 题缺少 title`);
+        const answers = item.answers || item.answer;
+        if (!Array.isArray(answers) || !answers.some((answer) => String(answer).trim())) {
+          throw new Error(`第 ${index + 1} 题缺少 answers`);
+        }
+        const type = String(item.type ?? "");
+        if (type && !["0", "1", "2", "3", "4"].includes(type)) {
+          throw new Error(`第 ${index + 1} 题 type 只能是 0-4`);
+        }
+        if ((type === "0" || type === "1") && (!Array.isArray(item.options) || item.options.length < 2)) {
+          throw new Error(`第 ${index + 1} 题选项至少 2 个`);
+        }
+      });
+      return parsed;
+    };
+
+    const loadTemplate = async () => {
+      const template = await (await fetch("/template.json")).json();
+      jsonInput.value = `${JSON.stringify(template, null, 2)}\n`;
+      setStatus(jsonStatus, `已载入模版，共 ${template.questions.length} 道示例`, true);
+    };
+
+    const importParsed = async (parsed) => {
+      const result = await (await fetch("/questions/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed)
+      })).json();
+      if (result.code !== 200) throw new Error(result.msg || "导入失败");
+      setStatus(jsonStatus, result.msg || "导入完成", true);
+      await loadQuestions();
+    };
+
+    document.querySelector("#type-tabs").addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-type]");
+      if (!button) return;
+      state.type = button.dataset.type;
+      if ((state.type === "0" || state.type === "1") && state.options.length < 2) {
+        state.options = [{ text: "", correct: true }, { text: "", correct: false }];
+      }
+      renderTypeFields();
+    });
+
+    fields.addEventListener("input", (event) => {
+      if (event.target.dataset.text != null) state.options[Number(event.target.dataset.text)].text = event.target.value;
+      if (event.target.dataset.blank != null) state.blanks[Number(event.target.dataset.blank)] = event.target.value;
+      if (event.target.id === "essay") state.essay = event.target.value;
+    });
+
+    fields.addEventListener("change", (event) => {
+      if (event.target.name !== "correct") return;
+      if (state.type === "0") {
+        state.options.forEach((item, index) => {
+          item.correct = String(index) === event.target.dataset.index;
+        });
+        return;
+      }
+      state.options[Number(event.target.dataset.index)].correct = event.target.checked;
+    });
+
+    fields.addEventListener("click", (event) => {
+      if (event.target.id === "add-option") {
+        state.options.push({ text: "", correct: false });
+        renderTypeFields();
+        return;
+      }
+      if (event.target.id === "add-blank") {
+        state.blanks.push("");
+        renderTypeFields();
+        return;
+      }
+      if (event.target.dataset.judge) {
+        state.judge = event.target.dataset.judge;
+        renderTypeFields();
+        return;
+      }
+      if (event.target.dataset.remove != null && state.options.length > 2) {
+        state.options.splice(Number(event.target.dataset.remove), 1);
+        if (state.type === "0" && !state.options.some((item) => item.correct)) state.options[0].correct = true;
+        renderTypeFields();
+      }
+      if (event.target.dataset.removeBlank != null && state.blanks.length > 1) {
+        state.blanks.splice(Number(event.target.dataset.removeBlank), 1);
+        renderTypeFields();
+      }
     });
 
     document.querySelector("#form").addEventListener("submit", async (event) => {
       event.preventDefault();
-      const payload = {
-        title: document.querySelector("#title").value.trim(),
-        type: document.querySelector("#type").value,
-        options: lines(document.querySelector("#options").value),
-        answers: lines(document.querySelector("#answers").value)
-      };
-      const response = await fetch("/questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const result = await response.json();
-      if (!response.ok || result.code !== 200) {
-        setStatus(result.msg || "保存失败", false);
+      try {
+        const result = await (await fetch("/questions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(collectPayload())
+        })).json();
+        if (result.code !== 200) throw new Error(result.msg || "保存失败");
+        setStatus(status, "已保存", true);
+        resetForm();
+        await loadQuestions();
+      } catch (error) {
+        setStatus(status, error.message, false);
+      }
+    });
+
+    document.querySelector("#reset").addEventListener("click", () => {
+      resetForm();
+      setStatus(status, "", true);
+    });
+
+    document.querySelector("#load-template").addEventListener("click", () => {
+      loadTemplate().catch((error) => setStatus(jsonStatus, error.message, false));
+    });
+
+    document.querySelector("#copy-json").addEventListener("click", async () => {
+      if (!jsonInput.value.trim()) {
+        setStatus(jsonStatus, "先载入模版或粘贴 JSON", false);
         return;
       }
-      setStatus("已保存", true);
-      event.target.reset();
-      await render();
+      await navigator.clipboard.writeText(jsonInput.value);
+      setStatus(jsonStatus, "已复制当前 JSON", true);
+    });
+
+    document.querySelector("#copy-prompt").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(aiPrompt);
+      setStatus(jsonStatus, "已复制给 AI 的说明", true);
+    });
+
+    document.querySelector("#check-json").addEventListener("click", () => {
+      try {
+        const parsed = inspectJson(jsonInput.value);
+        const count = Array.isArray(parsed) ? parsed.length : parsed.questions.length;
+        setStatus(jsonStatus, `语法正确，共 ${count} 道题，可以导入`, true);
+      } catch (error) {
+        setStatus(jsonStatus, error.message, false);
+      }
+    });
+
+    document.querySelector("#import-json").addEventListener("click", async () => {
+      try {
+        await importParsed(inspectJson(jsonInput.value));
+      } catch (error) {
+        setStatus(jsonStatus, error.message, false);
+      }
+    });
+
+    document.querySelector("#import-file").addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      event.target.value = "";
+      if (!file) return;
+      try {
+        jsonInput.value = await file.text();
+        await importParsed(inspectJson(jsonInput.value));
+      } catch (error) {
+        setStatus(jsonStatus, error.message, false);
+      }
+    });
+
+    document.querySelector("#search").addEventListener("input", (event) => {
+      state.query = event.target.value;
+      state.page = 1;
+      renderList();
+    });
+
+    document.querySelector("#prev-page").addEventListener("click", () => {
+      if (state.page > 1) {
+        state.page -= 1;
+        renderList();
+      }
+    });
+
+    document.querySelector("#next-page").addEventListener("click", () => {
+      const pages = Math.max(1, Math.ceil(filteredQuestions().length / PAGE_SIZE));
+      if (state.page < pages) {
+        state.page += 1;
+        renderList();
+      }
     });
 
     list.addEventListener("click", async (event) => {
       const button = event.target.closest("button[data-index]");
       if (!button) return;
-      const response = await fetch("/questions", {
+      const result = await (await fetch("/questions", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ index: Number(button.dataset.index) })
-      });
-      const result = await response.json();
-      if (!response.ok || result.code !== 200) {
-        setStatus(result.msg || "删除失败", false);
+      })).json();
+      if (result.code !== 200) {
+        setStatus(status, result.msg || "删除失败", false);
         return;
       }
-      setStatus("已删除", true);
-      await render();
+      setStatus(status, "已删除", true);
+      await loadQuestions();
     });
 
-    render().catch(() => setStatus("题库服务未启动", false));
+    renderTypeFields();
+    loadTemplate().catch(() => setStatus(jsonStatus, "模版加载失败", false));
+    loadQuestions().catch(() => setStatus(status, "题库服务未启动", false));
   </script>
 </body>
 </html>

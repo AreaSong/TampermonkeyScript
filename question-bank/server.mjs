@@ -35,15 +35,55 @@ const miss = (msg) => ({
   msg
 });
 
-const ok = (answers, total) => ({
+const ok = (answers, total, extra = {}) => ({
   code: 200,
   data: {
     answer: answers,
     num: String(total),
     usenum: "1"
   },
-  msg: "ok"
+  msg: extra.msg || "ok",
+  ...extra
 });
+
+const TEMPLATE = {
+  说明: "type：0单选 1多选 2填空 3判断 4简答。options 填全部选项正文。answers 填正确项正文，不要写 A/B/C。填好 questions 后，到管理页一键导入。",
+  questions: [
+    {
+      title: "绿色植物在光照下释放氧气，主要是因为",
+      type: "0",
+      options: ["呼吸作用", "光合作用", "蒸腾作用", "渗透作用"],
+      answers: ["光合作用"]
+    },
+    {
+      title: "下列属于可再生资源的是",
+      type: "1",
+      options: ["煤炭", "太阳能", "风能", "石油"],
+      answers: ["太阳能", "风能"]
+    },
+    {
+      title: "地球绕太阳公转一周大约是一年",
+      type: "3",
+      options: ["正确", "错误"],
+      answers: ["正确"]
+    },
+    {
+      title: "中国的首都是",
+      type: "2",
+      options: [],
+      answers: ["北京"]
+    }
+  ]
+};
+
+const downloadJson = (res, filename, payload) => {
+  const body = `${JSON.stringify(payload, null, 2)}\n`;
+  res.writeHead(200, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Content-Disposition": `attachment; filename="${filename}"`
+  });
+  res.end(body);
+};
 
 const normalizeTitle = (text) => String(text || "")
   .replace(/<[^>]+>/g, "")
@@ -173,13 +213,48 @@ const handleAdd = (questions, body) => {
     answers
   };
   const existingIndex = questions.findIndex((item) => normalizeTitle(item.title) === normalizeTitle(title));
-  if (existingIndex >= 0) {
-    questions[existingIndex] = { ...questions[existingIndex], ...next };
-  } else {
+  const created = existingIndex < 0;
+  if (created) {
     questions.push(next);
+  } else {
+    questions[existingIndex] = { ...questions[existingIndex], ...next };
   }
   saveQuestions(questions);
-  return { status: 200, payload: ok(next.answers, questions.length) };
+  return { status: 200, payload: ok(next.answers, questions.length, { created }) };
+};
+
+const importItems = (body) => {
+  if (Array.isArray(body)) return body;
+  if (body && Array.isArray(body.questions)) return body.questions;
+  return [];
+};
+
+const handleImport = (questions, body) => {
+  const items = importItems(body).filter((item) => item && typeof item === "object" && (item.title || item.question));
+  if (!items.length) {
+    return { status: 400, payload: miss("没有可导入的题目") };
+  }
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  for (const item of items) {
+    const result = handleAdd(questions, item);
+    if (result.status !== 200) {
+      skipped += 1;
+      continue;
+    }
+    if (result.payload.created) created += 1;
+    else updated += 1;
+  }
+  return {
+    status: 200,
+    payload: ok([], questions.length, {
+      created,
+      updated,
+      skipped,
+      msg: `导入完成：新增 ${created}，更新 ${updated}，跳过 ${skipped}`
+    })
+  };
 };
 
 const handleDelete = (questions, body) => {
@@ -209,6 +284,10 @@ const route = async (req, res) => {
     html(res, fs.readFileSync(ADMIN_FILE, "utf8"));
     return;
   }
+  if (req.method === "GET" && url.pathname === "/template.json") {
+    downloadJson(res, "areasong-question-template.json", TEMPLATE);
+    return;
+  }
   if (req.method === "GET" && url.pathname === "/health") {
     const questions = loadQuestions();
     json(res, 200, { ok: true, count: questions.length });
@@ -227,6 +306,12 @@ const route = async (req, res) => {
   if (req.method === "POST" && url.pathname === "/questions") {
     const body = await readBody(req);
     const result = handleAdd(questions, body);
+    json(res, result.status, result.payload);
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/questions/import") {
+    const body = await readBody(req);
+    const result = handleImport(questions, body);
     json(res, result.status, result.payload);
     return;
   }
