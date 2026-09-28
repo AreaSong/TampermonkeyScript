@@ -24,7 +24,7 @@ const json = (res, status, payload) => {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, referer, u, t",
-    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS"
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS"
   });
   res.end(body);
 };
@@ -258,6 +258,27 @@ const handleImport = (questions, body) => {
   };
 };
 
+const handleUpdate = (questions, body) => {
+  const index = Number(body.index);
+  if (!Number.isInteger(index) || index < 0 || index >= questions.length) {
+    return { status: 400, payload: miss("需要有效 index") };
+  }
+  const title = String(body.title || body.question || "").trim();
+  const answers = normalizeAnswers(body.answers || body.answer);
+  if (!title || !answers.length) {
+    return { status: 400, payload: miss("title 和 answers 必填") };
+  }
+  questions[index] = {
+    title,
+    no: body.no == null ? String(questions[index].no || "") : String(body.no).trim(),
+    type: body.type == null ? "" : String(body.type),
+    options: Array.isArray(body.options) ? body.options.map((item) => String(item)) : [],
+    answers
+  };
+  saveQuestions(questions);
+  return { status: 200, payload: ok(answers, questions.length) };
+};
+
 const handleDelete = (questions, body) => {
   const index = Number(body.index);
   const title = String(body.title || "").trim();
@@ -315,6 +336,12 @@ const route = async (req, res) => {
   if (req.method === "POST" && url.pathname === "/questions") {
     const body = await readBody(req);
     const result = handleAdd(questions, body);
+    json(res, result.status, result.payload);
+    return;
+  }
+  if (req.method === "PUT" && url.pathname === "/questions") {
+    const body = await readBody(req);
+    const result = handleUpdate(questions, body);
     json(res, result.status, result.payload);
     return;
   }

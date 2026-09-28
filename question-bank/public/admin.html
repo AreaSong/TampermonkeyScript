@@ -160,6 +160,11 @@
       margin: 0 auto;
       padding: 4px 4px 24px;
     }
+    #single-view {
+      min-height: 0;
+      overflow: auto;
+    }
+    #single-view .single { display: block; }
     .type-tabs { margin: 0 0 12px; }
     .type-tabs button[data-type="0"], .filters button[data-filter="0"] { color: var(--type-0); background: #ecf5ff; }
     .type-tabs button[data-type="1"], .filters button[data-filter="1"] { color: #b88230; background: #fdf6ec; }
@@ -218,16 +223,54 @@
       gap: 10px;
     }
     .bank-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-    .bank-toolbar .field { margin: 0; max-width: 280px; flex: 1; }
+    .bank-toolbar .field { margin: 0; min-width: 200px; max-width: none; flex: 1; }
+    .bank-body {
+      min-height: 0;
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+    }
+    .bank-body.is-editing { grid-template-columns: minmax(0, 1fr) min(420px, 40%); }
+    .bank-editor {
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 12px;
+      background: #fafafa;
+    }
+    .bank-editor-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .bank-editor .single {
+      flex: 1;
+      min-height: 0;
+      height: auto;
+      max-width: none;
+      margin: 0;
+      padding: 0;
+      overflow: auto;
+    }
+    .bank-editor .actions {
+      position: sticky;
+      bottom: 0;
+      background: #fafafa;
+      padding: 10px 0 0;
+    }
     .list {
       min-height: 0;
       overflow: auto;
       display: grid;
       gap: 6px;
       align-content: start;
-      max-width: 960px;
       width: 100%;
-      margin: 0 auto;
       padding-bottom: 16px;
     }
     .item {
@@ -281,6 +324,7 @@
       padding: 0 10px 10px;
     }
     .list .item.is-open .choices { display: grid; }
+    .list .item.is-editing { border-color: var(--accent); }
     .item.type-0 { border-left: 3px solid var(--type-0); }
     .item.type-1 { border-left: 3px solid var(--type-1); }
     .item.type-2 { border-left: 3px solid var(--type-2); }
@@ -430,10 +474,11 @@
         <textarea id="title" class="field" placeholder="把完整题干贴在这里"></textarea>
         <div id="type-fields"></div>
         <div class="actions">
-          <button type="submit">保存到题库</button>
+          <button type="submit" id="form-submit">保存到题库</button>
           <button type="button" class="ghost" id="reset">清空</button>
         </div>
       </form>
+      <div id="single-view" hidden></div>
       <section class="bank" id="bank-view" hidden>
         <div class="bank-toolbar">
           <div class="filters" id="type-filters">
@@ -445,8 +490,17 @@
             <button type="button" data-filter="4">简答</button>
           </div>
           <input id="search" class="field" placeholder="搜索题干、选项或答案">
+          <button type="button" id="add-question">新增题目</button>
         </div>
-        <div class="list" id="list"></div>
+        <div class="bank-body" id="bank-body">
+          <div class="list" id="list"></div>
+          <aside class="bank-editor" id="bank-editor" hidden>
+            <div class="bank-editor-head">
+              <strong id="editor-heading">编辑题目</strong>
+              <button type="button" class="ghost tiny" id="close-editor">取消</button>
+            </div>
+          </aside>
+        </div>
         <div class="pager">
           <span id="page-info">共 0 题</span>
           <div class="actions">
@@ -497,10 +551,15 @@
       questions: [],
       query: "",
       filterType: "all",
-      open: new Set()
+      open: new Set(),
+      editing: null
     };
 
     const fields = document.querySelector("#type-fields");
+    const form = document.querySelector("#form");
+    const singleView = document.querySelector("#single-view");
+    const bankBody = document.querySelector("#bank-body");
+    const bankEditor = document.querySelector("#bank-editor");
     const status = document.querySelector("#status");
     const list = document.querySelector("#list");
     const batchInput = document.querySelector("#batch-input");
@@ -570,7 +629,7 @@
       const open = state.open.has(index);
       const type = String(item.type || "0");
       return `
-        <article class="item type-${escapeHtml(type)}${open ? " is-open" : ""}" data-index="${index}">
+        <article class="item type-${escapeHtml(type)}${open ? " is-open" : ""}${state.editing === index ? " is-editing" : ""}" data-index="${index}">
           <div class="bank-row">
             <span class="type-badge">${escapeHtml(typeName[item.type] || item.type || "")}</span>
             <div class="bank-main">
@@ -578,6 +637,7 @@
               <span class="bank-answer">答案：${escapeHtml(answerSummary(item))}</span>
             </div>
             <div class="actions">
+              <button type="button" class="ghost tiny" data-edit="${index}">编辑</button>
               <button type="button" class="ghost tiny" data-toggle>${open ? "收起" : "展开"}</button>
               <button type="button" class="danger tiny" data-index="${index}">删除</button>
             </div>
@@ -623,14 +683,77 @@
       }
     };
 
+    const closeEditor = () => {
+      state.editing = null;
+      bankEditor.hidden = true;
+      bankBody.classList.remove("is-editing");
+    };
+
+    const mountForm = () => {
+      if (state.mode === "single") {
+        singleView.appendChild(form);
+        form.hidden = false;
+        document.querySelector("#form-submit").textContent = "保存到题库";
+        return;
+      }
+      if (state.mode === "bank" && state.editing != null) {
+        bankEditor.appendChild(form);
+        form.hidden = false;
+        bankEditor.hidden = false;
+        bankBody.classList.add("is-editing");
+        document.querySelector("#form-submit").textContent = "保存";
+        return;
+      }
+      form.hidden = true;
+    };
+
+    const fillFromQuestion = (item) => {
+      const type = String(item.type || "0");
+      state.type = type;
+      document.querySelector("#title").value = item.title || "";
+      if (type === "0" || type === "1") {
+        const options = (item.options || []).map((option) => String(option));
+        const answers = item.answers || [];
+        const rows = (options.length ? options : answers).map((text) => ({
+          text,
+          correct: answers.some((answer) => sameText(answer, text))
+        }));
+        state.options = rows.length >= 2 ? rows : [{ text: "", correct: true }, { text: "", correct: false }];
+      } else if (type === "3") {
+        state.judge = sameText(item.answers?.[0], "错误") ? "错误" : "正确";
+      } else if (type === "2") {
+        const answers = (item.answers || []).map((answer) => String(answer));
+        state.blanks = answers.length ? answers : [""];
+      } else {
+        state.essay = (item.answers || []).join("\n");
+      }
+      renderTypeFields();
+    };
+
+    const openEditor = (target) => {
+      state.editing = target;
+      if (target === "new") {
+        document.querySelector("#editor-heading").textContent = "新增题目";
+        resetForm();
+      } else {
+        document.querySelector("#editor-heading").textContent = "编辑题目";
+        fillFromQuestion(state.questions[target]);
+      }
+      mountForm();
+      renderList();
+      document.querySelector("#title").focus();
+    };
+
     const renderMode = () => {
       document.querySelectorAll("#mode-tabs button").forEach((button) => {
         button.setAttribute("aria-pressed", String(button.dataset.mode === state.mode));
       });
       document.querySelector("#batch-view").hidden = state.mode !== "batch";
-      document.querySelector("#form").hidden = state.mode !== "single";
+      singleView.hidden = state.mode !== "single";
       document.querySelector("#bank-view").hidden = state.mode !== "bank";
       document.querySelector("#commit").hidden = state.mode !== "batch";
+      if (state.mode !== "bank") closeEditor();
+      mountForm();
     };
 
     const renderTabs = () => {
@@ -679,8 +802,12 @@
       const title = document.querySelector("#title").value.trim();
       if (!title) throw new Error("请填写题干");
       if (state.type === "0" || state.type === "1") {
-        const options = state.options.map((item) => item.text.trim()).filter(Boolean);
-        const answers = state.options.filter((item) => item.correct && item.text.trim()).map((item) => item.text.trim());
+        const optionInputs = [...fields.querySelectorAll("[data-text]")];
+        const marks = [...fields.querySelectorAll(".mark")];
+        const options = optionInputs.map((input) => input.value.trim()).filter(Boolean);
+        const answers = optionInputs
+          .filter((input, index) => marks[index]?.checked && input.value.trim())
+          .map((input) => input.value.trim());
         if (options.length < 2) throw new Error("至少填写 2 个选项");
         if (state.type === "0" && answers.length !== 1) throw new Error("单选必须点选 1 个正确答案");
         if (state.type === "1" && answers.length < 1) throw new Error("多选至少勾选 1 个正确答案");
@@ -688,7 +815,9 @@
       }
       if (state.type === "3") return { title, type: "3", options: ["正确", "错误"], answers: [state.judge] };
       if (state.type === "2") {
-        const answers = state.blanks.map((item) => item.trim()).filter(Boolean);
+        const answers = [...fields.querySelectorAll("[data-blank]")]
+          .map((input) => input.value.trim())
+          .filter(Boolean);
         if (!answers.length) throw new Error("至少填写 1 个空");
         return { title, type: "2", options: [], answers };
       }
@@ -862,17 +991,26 @@
     document.querySelector("#form").addEventListener("submit", async (event) => {
       event.preventDefault();
       try {
+        const payload = collectPayload();
+        const editing = state.editing;
+        const isUpdate = state.mode === "bank" && Number.isInteger(editing);
         const result = await (await fetch("/questions", {
-          method: "POST",
+          method: isUpdate ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(collectPayload())
+          body: JSON.stringify(isUpdate ? { ...payload, index: editing } : payload)
         })).json();
         if (result.code !== 200) throw new Error(result.msg || "保存失败");
-        setStatus("已保存", true);
-        resetForm();
+        setStatus(isUpdate ? "已更新" : "已保存", true);
         await loadQuestions();
-        state.mode = "bank";
-        renderMode();
+        if (state.mode === "bank") {
+          closeEditor();
+          mountForm();
+          renderList();
+        } else {
+          resetForm();
+          state.mode = "bank";
+          renderMode();
+        }
       } catch (error) {
         setStatus(error.message, false);
       }
@@ -905,7 +1043,19 @@
       renderList();
     });
 
+    document.querySelector("#add-question").addEventListener("click", () => openEditor("new"));
+    document.querySelector("#close-editor").addEventListener("click", () => {
+      closeEditor();
+      mountForm();
+      renderList();
+    });
+
     list.addEventListener("click", async (event) => {
+      const edit = event.target.closest("button[data-edit]");
+      if (edit) {
+        openEditor(Number(edit.dataset.edit));
+        return;
+      }
       const remove = event.target.closest("button[data-index]");
       if (remove) {
         const deleted = Number(remove.dataset.index);
@@ -924,8 +1074,11 @@
           if (index > deleted) next.add(index - 1);
         });
         state.open = next;
+        if (state.editing === deleted) closeEditor();
+        else if (Number.isInteger(state.editing) && state.editing > deleted) state.editing -= 1;
         setStatus("已删除", true);
         await loadQuestions();
+        mountForm();
         return;
       }
       const row = event.target.closest(".bank-row");
