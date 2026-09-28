@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AreaSong
 // @namespace    AreaSong
-// @version      0.2.10
+// @version      0.2.11
 // @author       AreaSong
 // @description  🫧 目前已经支持的平台：【超星学习通「功能基本完成」】【知到智慧树「目前只支持答题」】。🚀 目前已经具有的功能包括：▶️视频自动观看，跳转下一个任务点，📄章节测试、作业自动完成，无答案自动保存，💯考试自动完成，自动切换、保存。使用脚本请进入对应平台的页面。
 // @license      MIT
@@ -780,18 +780,94 @@
   const _hoisted_1$4 = { class: "setting" };
   const _hoisted_2$4 = { class: "setting-section-title" };
   const _hoisted_3$2 = { class: "setting-section-title" };
+  const _hoisted_4$4 = { class: "setting-section-title" };
   const _sfc_main$7 = /* @__PURE__ */ vue.defineComponent({
     __name: "index",
     props: {
       globalConfig: {}
     },
     setup(__props) {
+      const isTokenEditing = vue.ref(false);
+      const configStore = useConfigStore();
       return (_ctx, _cache) => {
         const _component_el_divider = vue.resolveComponent("el-divider");
         const _component_el_checkbox = vue.resolveComponent("el-checkbox");
         const _component_el_input_number = vue.resolveComponent("el-input-number");
         const _component_el_form_item = vue.resolveComponent("el-form-item");
+        const _component_el_radio_group = vue.resolveComponent("el-radio-group");
+        const _component_el_radio_button = vue.resolveComponent("el-radio-button");
+        const _component_el_input = vue.resolveComponent("el-input");
+        const _component_el_button = vue.resolveComponent("el-button");
         return vue.openBlock(), vue.createElementBlock("div", _hoisted_1$4, [
+          vue.createElementVNode("div", { class: "setting-bank" }, [
+            vue.createVNode(_component_el_divider, { "border-style": "dashed" }, {
+              default: vue.withCtx(() => [
+                vue.createElementVNode("span", _hoisted_4$4, "题库")
+              ]),
+              _: 1
+            }),
+            vue.createElementVNode("div", { class: "bank-select-wrap" }, [
+              vue.createElementVNode("div", { class: "bank-select-label" }, "搜题来源"),
+              vue.createVNode(_component_el_radio_group, {
+                class: "bank-select",
+                modelValue: vue.unref(configStore).questionBankMode,
+                "onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => vue.unref(configStore).questionBankMode = $event),
+                size: "small"
+              }, {
+                default: vue.withCtx(() => [
+                  vue.createVNode(_component_el_radio_button, {
+                    value: "local",
+                    label: "local"
+                  }, {
+                    default: vue.withCtx(() => [
+                      vue.createTextVNode("仅本地")
+                    ]),
+                    _: 1
+                  }),
+                  vue.createVNode(_component_el_radio_button, {
+                    value: "remote",
+                    label: "remote"
+                  }, {
+                    default: vue.withCtx(() => [
+                      vue.createTextVNode("仅原题库")
+                    ]),
+                    _: 1
+                  }),
+                  vue.createVNode(_component_el_radio_button, {
+                    value: "both",
+                    label: "both"
+                  }, {
+                    default: vue.withCtx(() => [
+                      vue.createTextVNode("两个都用")
+                    ]),
+                    _: 1
+                  })
+                ]),
+                _: 1
+              }, 8, ["modelValue"])
+            ]),
+            vue.withDirectives(vue.createVNode(_component_el_input, {
+              class: "token-input",
+              modelValue: vue.unref(configStore).queryApis[0].token,
+              "onUpdate:modelValue": _cache[5] || (_cache[5] = ($event) => vue.unref(configStore).queryApis[0].token = $event),
+              type: isTokenEditing.value ? "text" : "password",
+              onFocus: _cache[6] || (_cache[6] = ($event) => isTokenEditing.value = true),
+              onBlur: _cache[7] || (_cache[7] = ($event) => isTokenEditing.value = false),
+              placeholder: "原题库密钥，仅查询原题库时需要"
+            }, {
+              prepend: vue.withCtx(() => [
+                vue.createVNode(_component_el_button, { class: "token-label" }, {
+                  default: vue.withCtx(() => [
+                    vue.createTextVNode("密钥")
+                  ]),
+                  _: 1
+                })
+              ]),
+              _: 1
+            }, 8, ["modelValue", "type"]), [
+              [vue.vShow, vue.unref(configStore).questionBankMode !== "local"]
+            ])
+          ]),
           (vue.openBlock(true), vue.createElementBlock(vue.Fragment, null, vue.renderList(_ctx.globalConfig.platformParams[_ctx.globalConfig.platformName].parts, (part) => {
             return vue.openBlock(), vue.createElementBlock("div", {
               key: part.name
@@ -887,9 +963,7 @@
       questionList: {}
     },
     setup(__props) {
-      const isTokenEditing = vue.ref(false);
       const retryingAll = vue.ref(false);
-      const configStore = useConfigStore();
       const getAnswerStatus = (question) => question.answerStatus ?? (question.answer.length ? "success" : "pending");
       const hasFailed = vue.computed(() => (__props.questionList || []).some((question) => getAnswerStatus(question) === "error"));
       const retryOne = (question) => retryQuestion(question);
@@ -924,53 +998,10 @@
       };
       return (_ctx, _cache) => {
         const _component_el_button = vue.resolveComponent("el-button");
-        const _component_el_input = vue.resolveComponent("el-input");
-        const _component_el_radio_group = vue.resolveComponent("el-radio-group");
-        const _component_el_radio_button = vue.resolveComponent("el-radio-button");
         const _component_el_table_column = vue.resolveComponent("el-table-column");
         const _component_el_table = vue.resolveComponent("el-table");
         const _component_el_empty = vue.resolveComponent("el-empty");
         return vue.openBlock(), vue.createElementBlock(vue.Fragment, null, [
-          vue.createElementVNode("div", { class: "bank-select-wrap" }, [
-            vue.createElementVNode("div", { class: "bank-select-label" }, "搜题来源"),
-            vue.createVNode(_component_el_radio_group, {
-              class: "bank-select",
-              modelValue: vue.unref(configStore).questionBankMode,
-              "onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => vue.unref(configStore).questionBankMode = $event),
-              size: "small"
-            }, {
-              default: vue.withCtx(() => [
-                vue.createVNode(_component_el_radio_button, {
-                  value: "local",
-                  label: "local"
-                }, {
-                  default: vue.withCtx(() => [
-                    vue.createTextVNode("仅本地")
-                  ]),
-                  _: 1
-                }),
-                vue.createVNode(_component_el_radio_button, {
-                  value: "remote",
-                  label: "remote"
-                }, {
-                  default: vue.withCtx(() => [
-                    vue.createTextVNode("仅原题库")
-                  ]),
-                  _: 1
-                }),
-                vue.createVNode(_component_el_radio_button, {
-                  value: "both",
-                  label: "both"
-                }, {
-                  default: vue.withCtx(() => [
-                    vue.createTextVNode("两个都用")
-                  ]),
-                  _: 1
-                })
-              ]),
-              _: 1
-            }, 8, ["modelValue"])
-          ]),
           vue.createElementVNode("div", { class: "retry-bar" }, [
             vue.createVNode(_component_el_button, {
               size: "small",
@@ -982,27 +1013,6 @@
               ]),
               _: 1
             }, 8, ["disabled"])
-          ]),
-          vue.withDirectives(vue.createVNode(_component_el_input, {
-            class: "token-input",
-            modelValue: vue.unref(configStore).queryApis[0].token,
-            "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => vue.unref(configStore).queryApis[0].token = $event),
-            type: isTokenEditing.value ? "text" : "password",
-            onFocus: _cache[1] || (_cache[1] = ($event) => isTokenEditing.value = true),
-            onBlur: _cache[2] || (_cache[2] = ($event) => isTokenEditing.value = false),
-            placeholder: "原题库密钥，仅查询原题库时需要"
-          }, {
-            prepend: vue.withCtx(() => [
-              vue.createVNode(_component_el_button, { class: "token-label" }, {
-                default: vue.withCtx(() => [
-                  vue.createTextVNode("密钥")
-                ]),
-                _: 1
-              })
-            ]),
-            _: 1
-          }, 8, ["modelValue", "type"]), [
-            [vue.vShow, vue.unref(configStore).questionBankMode !== "local"]
           ]),
           vue.withDirectives(vue.createElementVNode("div", _hoisted_1$3, [
             _hoisted_2$3,
@@ -1084,7 +1094,7 @@
     "aria-label": "使用教程",
     tabindex: "0"
   };
-  const _hoisted_2$2 = /* @__PURE__ */ vue.createStaticVNode('<header class="guide-header"><div class="guide-heading-row"><h2 class="guide-title">使用教程</h2><span class="guide-tag">脚本免费</span></div><p class="guide-subtitle">了解费用说明，按需配置你的题库。</p></header><ol class="guide-list"><li class="guide-card"><div class="guide-card-heading"><span class="guide-number" aria-hidden="true">01</span><h3 class="guide-card-title">脚本免费，题库单独收费</h3></div><p class="guide-copy">脚本开源，功能除接入的第三方题库外，完全免费，进入相应页面即可使用。<strong>题库资费由第三方题库开发者决定，与脚本作者无关。</strong>如不满意，可以自行接入自己的题库。</p></li><li class="guide-card"><div class="guide-card-heading"><span class="guide-number" aria-hidden="true">02</span><h3 class="guide-card-title">按需填写题库密钥</h3></div><p class="guide-copy">脚本没有开发自己的题库，而是接入了多个第三方题库。如需填写密钥，请依次操作：</p><ol class="guide-flow" aria-label="题库密钥配置步骤"><li class="guide-flow-step"><span class="guide-flow-number" aria-hidden="true">1</span><span>打开「答题」</span></li><li class="guide-flow-step"><span class="guide-flow-number" aria-hidden="true">2</span><span>填写密钥</span></li><li class="guide-flow-step"><span class="guide-flow-number" aria-hidden="true">3</span><span>刷新页面</span></li></ol></li></ol>', 2);
+  const _hoisted_2$2 = /* @__PURE__ */ vue.createStaticVNode('<header class="guide-header"><div class="guide-heading-row"><h2 class="guide-title">使用教程</h2><span class="guide-tag">脚本免费</span></div><p class="guide-subtitle">了解费用说明，按需配置你的题库。</p></header><ol class="guide-list"><li class="guide-card"><div class="guide-card-heading"><span class="guide-number" aria-hidden="true">01</span><h3 class="guide-card-title">脚本免费，题库单独收费</h3></div><p class="guide-copy">脚本开源，功能除接入的第三方题库外，完全免费，进入相应页面即可使用。<strong>题库资费由第三方题库开发者决定，与脚本作者无关。</strong>如不满意，可以自行接入自己的题库。</p></li><li class="guide-card"><div class="guide-card-heading"><span class="guide-number" aria-hidden="true">02</span><h3 class="guide-card-title">按需填写题库密钥</h3></div><p class="guide-copy">脚本没有开发自己的题库，而是接入了多个第三方题库。如需填写密钥，请依次操作：</p><ol class="guide-flow" aria-label="题库密钥配置步骤"><li class="guide-flow-step"><span class="guide-flow-number" aria-hidden="true">1</span><span>打开「设置」</span></li><li class="guide-flow-step"><span class="guide-flow-number" aria-hidden="true">2</span><span>填写密钥</span></li><li class="guide-flow-step"><span class="guide-flow-number" aria-hidden="true">3</span><span>刷新页面</span></li></ol></li></ol>', 2);
   const _hoisted_4$1 = [
     _hoisted_2$2
   ];
@@ -6628,7 +6638,7 @@
     return GM_addStyle(t), t;
   };
   cssLoader("ElementPlus");
-  const bankSelectCss = ".main-page .bank-select-wrap{margin:2px 0 10px}.main-page .bank-select-label{margin:0 0 6px;color:#4e5969;font-size:12px;line-height:18px}.main-page .bank-select{display:flex;width:100%}.main-page .bank-select .el-radio-button{flex:1}.main-page .bank-select .el-radio-button__inner{width:100%;padding:6px 8px;font-size:12px}.main-page .retry-bar{display:flex;justify-content:flex-end;margin:0 0 8px}.main-page .answer-cell{display:flex;flex-direction:column;align-items:flex-start;gap:4px}.main-page .answer-retry{padding:0;height:auto}.main-page .question-list .el-table__cell{white-space:normal;vertical-align:top}.main-page .bank-hit{display:grid;gap:4px;color:#1f2329;font-size:12px;line-height:1.5;font-weight:400}.main-page .bank-hit-title{font-weight:600}.main-page .bank-hit-options{display:grid;gap:2px}.main-page .bank-hit-option{display:flex;gap:6px;align-items:flex-start}.main-page .bank-hit-option.is-correct{color:#15803d;font-weight:600}.main-page .bank-hit-letter{flex:0 0 16px;color:#86909c}.main-page .bank-hit-answers{color:#15803d;font-weight:600}";
+  const bankSelectCss = ".main-page .bank-select-wrap{margin:0 0 10px}.main-page .bank-select-label{margin:0 0 6px;color:#4e5969;font-size:12px;line-height:18px}.main-page .bank-select .el-radio-button__inner{padding:5px 10px;font-size:12px}.main-page .setting-bank .token-input{margin-top:8px}.main-page .retry-bar{display:flex;justify-content:flex-end;margin:0 0 8px}.main-page .answer-cell{display:flex;flex-direction:column;align-items:flex-start;gap:4px}.main-page .answer-retry{padding:0;height:auto}.main-page .question-list .el-table__cell{white-space:normal;vertical-align:top}.main-page .bank-hit{display:grid;gap:4px;color:#1f2329;font-size:12px;line-height:1.5;font-weight:400}.main-page .bank-hit-title{font-weight:600}.main-page .bank-hit-options{display:grid;gap:2px}.main-page .bank-hit-option{display:flex;gap:6px;align-items:flex-start}.main-page .bank-hit-option.is-correct{color:#15803d;font-weight:600}.main-page .bank-hit-letter{flex:0 0 16px;color:#86909c}.main-page .bank-hit-answers{color:#15803d;font-weight:600}";
   const layoutCss = '.main-page .guide-page{box-sizing:border-box;max-height:min(400px,calc(100vh - 160px));max-height:min(400px,calc(100dvh - 160px));overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;padding:2px 4px 2px 0;color:#4e5969;font-size:12px;line-height:1.7;scrollbar-width:thin;scrollbar-color:#c7d7eb transparent}.main-page .guide-page:focus-visible{outline:2px solid #176ae5;outline-offset:2px;border-radius:8px}.main-page .guide-header{margin:0 0 10px;padding:11px 12px;border:1px solid #d9e8fc;border-radius:9px;background:linear-gradient(120deg,#edf5ff 0%,#f8fbff 100%)}.main-page .guide-heading-row{display:flex;align-items:center;justify-content:space-between;gap:8px}.main-page .guide-title{margin:0;color:#174b94;font-size:15px;font-weight:600;line-height:1.6}.main-page .guide-tag{flex-shrink:0;padding:1px 7px;border:1px solid #d4e5fc;border-radius:20px;background-color:#fff;color:#2262b5;font-size:10px;line-height:18px}.main-page .guide-subtitle{margin:3px 0 0;color:#61758e;font-size:11px}.main-page .guide-list{display:grid;gap:8px;margin:0;padding:0;list-style:none}.main-page .guide-card{min-width:0;padding:10px;border:1px solid #e4eaf2;border-radius:8px;background-color:#fff}.main-page .guide-card-heading{display:flex;align-items:center;gap:8px;margin-bottom:6px}.main-page .guide-number{display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;height:24px;border-radius:7px;background-color:#eaf3ff;color:#176ae5;font-size:11px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}.main-page .guide-card-title{margin:0;color:#263a55;font-size:12px;font-weight:600;line-height:1.6}.main-page .guide-copy{margin:0;overflow-wrap:anywhere}.main-page .guide-flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:10px 0 0;padding:9px 4px 7px;border-radius:7px;background-color:#f3f7fd;list-style:none}.main-page .guide-flow-step{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;color:#3a5a83;font-size:10px;line-height:18px;text-align:center}.main-page .guide-flow-step+.guide-flow-step:before{position:absolute;top:8px;left:-5px;width:5px;height:5px;border-top:1px solid #9cb8da;border-right:1px solid #9cb8da;content:"";transform:rotate(45deg)}.main-page .guide-flow-number{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid #d5e4f8;border-radius:50%;background-color:#fff;color:#176ae5;font-size:11px;font-weight:600;line-height:1}.main-page{--app-font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";--el-font-family: var(--app-font-family);z-index:100003;position:fixed;color:#1f2329;font-family:var(--app-font-family)!important;font-size:14px;line-height:1.5715;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}.main-page *,.main-page input,.main-page button,.main-page textarea{font-family:var(--app-font-family)!important;letter-spacing:0}.main-page .el-card,.main-page .el-tabs,.main-page .el-text,.main-page .el-button,.main-page .el-input,.main-page .el-input__inner,.main-page .el-input-number,.main-page .el-table{font-family:var(--app-font-family)!important}.main-page .overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1001}.main-page .el-card{border:0}.main-page .card-header{display:flex;justify-content:space-between;flex-direction:row;align-items:center;margin:0;padding:0;cursor:move}.main-page .card-header .title{font-size:14px;display:flex;align-items:center;justify-content:center;font-weight:500}.main-page .warning-icon{margin-left:5px}.main-page .zoom-icon{cursor:pointer}.main-page .zoom-icon.is-spaced{margin-left:8px}.main-page .minus{margin:5px 10px -10px 0}.main-page .compact-divider{margin:0}.main-page .demo-tabs{display:initial}.main-page .el-card__header{background-color:#1f71e0;color:#fff;padding:7px 10px 7px 16px;margin:0}.main-page .el-card__body{padding:0 16px 20px}.main-page .el-tabs__nav-wrap:after{height:1px}.main-page .el-tabs__active-bar{background-color:#176ae5}.main-page .el-tabs__item{font-size:13px;height:34px}.main-page .el-tabs__item.is-top{font-weight:400;color:#4e5969;padding:0 8px 0 12px}.main-page .el-tabs__item.is-active{font-weight:500;color:#176ae5;padding:0 8px 0 12px}.main-page .script-home{padding-top:2px}.main-page .announcement-board{box-sizing:border-box;margin:2px 0 10px;padding:8px 10px;border:1px solid #bae0ff;border-radius:6px;background-color:#e6f4ff}.main-page .announcement-heading{display:flex;align-items:center;gap:6px;margin-bottom:4px;color:#0958d9;font-size:12px;font-weight:600;line-height:20px}.main-page .announcement-heading:before{content:"";width:6px;height:6px;flex:0 0 auto;border-radius:50%;background-color:#1677ff}.main-page .announcement-list{display:grid;gap:3px;margin:0;padding:0;list-style:none}.main-page .announcement-item{color:#1f2329;font-size:12px;line-height:20px;word-break:break-word}.main-page .log .el-text{font-weight:400;white-space:normal}.main-page .log-time{font-weight:400}.main-page .log-action-link{color:#176ae5;cursor:pointer;text-decoration:none}.main-page .log-action-link:hover{color:#409eff;text-decoration:underline}.main-page .log-divider{margin:0}.main-page .token-input,.main-page .question-list{font-size:12px}.main-page .token-label{border-radius:0}.main-page .question_table{width:625px}.main-page .answer-legend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:10px 2px 8px;font-size:11px;line-height:18px}.main-page .answer-legend>span{display:inline-flex;align-items:center;gap:5px}.main-page .answer-legend>span:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}.main-page .answer-result{line-height:1.7;overflow-wrap:anywhere}.main-page .answer-result--success{color:#15803d}.main-page .answer-result--searching{color:#a15c08}.main-page .answer-result--pending{color:#697586}.main-page .answer-result--error{color:#c73e38}.main-page .setting{margin-top:-8px;font-size:14px}.main-page .setting-section-title{font-size:13px}.main-page .setting-checkbox{margin-bottom:6px}.main-page .setting-number{margin-top:6px}.main-page .setting .el-form-item{margin-bottom:0}\n';
   const hookWebpack = () => {
     let originCall = _unsafeWindow.Function.prototype.call;
