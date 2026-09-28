@@ -140,21 +140,17 @@
       height: 100%;
       border: 0;
       resize: none;
-      padding: 44px 14px 48px;
+      padding: 12px 14px 16px;
       font: 14px/1.7 ui-monospace, SFMono-Regular, Menlo, "PingFang SC", sans-serif;
       background: transparent;
     }
     #batch-input:focus { outline: 0; }
-    .detect {
-      position: absolute;
-      left: 14px;
-      top: 10px;
-      z-index: 1;
-      background: #fff;
-      border: 1px solid #dcdfe6;
-      color: #606266;
-      font-size: 12px;
-      padding: 4px 8px;
+    .pane-tools .detect {
+      background: var(--accent);
+      color: #fff;
+      border: 0;
+      padding: 5px 12px;
+      font-size: 13px;
     }
     .preview { padding: 10px 12px 16px; }
     .single {
@@ -360,13 +356,13 @@
               <button type="button" class="link" id="quick-input">快捷输入</button>
               <button type="button" class="link" id="show-help">格式案例说明</button>
               <button type="button" class="ghost tiny" id="clear-input">清空</button>
+              <button type="button" class="detect" id="detect">识别格式</button>
             </div>
           </div>
           <div class="pane-body watermark" id="input-pane" data-mark="输入区">
-            <button type="button" class="detect" id="detect">自动识别格式</button>
             <textarea id="batch-input" spellcheck="false" placeholder="1.先查看格式说明后，再行录入
 2.支持题型：单选、多选、判断、填空、简答
-3.建议单次录入后先看检查区"></textarea>
+3.粘贴后会自动识别，也可点右上角「识别格式」"></textarea>
           </div>
         </section>
         <section class="pane">
@@ -546,15 +542,17 @@
         || (filled ? "<p class='hint'>没有识别到题目，点「格式案例说明」对照格式。</p>" : "");
     };
 
-    const detectFormat = () => {
+    const detectFormat = (silent = false) => {
       try {
         state.preview = parseInput(batchInput.value);
         renderPreview();
-        setStatus(state.preview.length ? `已识别 ${state.preview.length} 道题` : "没有识别到题目", Boolean(state.preview.length));
+        if (!silent) {
+          setStatus(state.preview.length ? `已识别 ${state.preview.length} 道题` : "没有识别到题目", Boolean(state.preview.length));
+        }
       } catch (error) {
         state.preview = [];
         renderPreview();
-        setStatus(error.message, false);
+        if (!silent) setStatus(error.message, false);
       }
     };
 
@@ -710,9 +708,12 @@
       setStatus("", true);
     });
 
-    document.querySelector("#detect").addEventListener("click", detectFormat);
+    document.querySelector("#detect").addEventListener("click", () => detectFormat(false));
+    let detectTimer = 0;
     batchInput.addEventListener("input", () => {
       inputPane.classList.toggle("watermark", !batchInput.value.trim());
+      window.clearTimeout(detectTimer);
+      detectTimer = window.setTimeout(() => detectFormat(true), 280);
     });
 
     document.querySelector("#commit").addEventListener("click", async () => {
