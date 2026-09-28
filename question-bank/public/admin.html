@@ -31,7 +31,7 @@
     }
     main {
       display: grid;
-      grid-template-rows: auto auto minmax(0, 1fr) minmax(180px, 32%);
+      grid-template-rows: auto auto minmax(0, 1fr);
       height: 100%;
     }
     .topbar {
@@ -86,7 +86,14 @@
       padding: 0;
       font-weight: 500;
     }
-    .workspace { min-height: 0; padding: 12px 18px; background: #fff; }
+    .workspace {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 12px 18px 16px;
+      background: #fff;
+    }
+    .workspace > * { flex: 1; min-height: 0; }
     .split {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -150,7 +157,13 @@
       padding: 4px 8px;
     }
     .preview { padding: 10px 12px 16px; }
-    .single { height: 100%; overflow: auto; padding: 4px 4px 12px; }
+    .single {
+      height: 100%;
+      overflow: auto;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 4px 4px 24px;
+    }
     .type-tabs { margin: 0 0 12px; }
     .type-tabs button[data-type="0"], .filters button[data-filter="0"] { color: var(--type-0); background: #ecf5ff; }
     .type-tabs button[data-type="1"], .filters button[data-filter="1"] { color: #b88230; background: #fdf6ec; }
@@ -206,11 +219,21 @@
       min-height: 0;
       display: flex;
       flex-direction: column;
-      padding: 10px 18px 12px;
-      border-top: 1px solid var(--line);
-      background: #fff;
+      gap: 10px;
     }
-    .list { min-height: 0; overflow: auto; display: grid; gap: 8px; align-content: start; }
+    .bank-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .bank-toolbar .field { margin: 0; max-width: 280px; flex: 1; }
+    .list {
+      min-height: 0;
+      overflow: auto;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      max-width: 820px;
+      width: 100%;
+      margin: 0 auto;
+      padding-bottom: 16px;
+    }
     .item {
       display: flex;
       flex-direction: column;
@@ -316,7 +339,7 @@
     <header class="topbar">
       <div>
         <h1>AreaSong 题库</h1>
-        <p class="lede">左边输入试卷文本，右边即时检查。确认后点录入试题。</p>
+        <p class="lede">录入用输入区检查区；看题请到「当前题库」，整页浏览。</p>
       </div>
       <p class="status" id="status"></p>
     </header>
@@ -324,6 +347,7 @@
       <div class="mode-tabs" id="mode-tabs">
         <button type="button" data-mode="batch" aria-pressed="true">批量导入</button>
         <button type="button" data-mode="single">单题导入</button>
+        <button type="button" data-mode="bank" id="bank-tab">当前题库</button>
       </div>
       <button type="button" id="commit">录入试题</button>
     </div>
@@ -372,26 +396,27 @@
           <button type="button" class="ghost" id="reset">清空</button>
         </div>
       </form>
-    </section>
-    <section class="bank">
-      <h1>当前题库 <span id="count"></span></h1>
-      <div class="filters" id="type-filters">
-        <button type="button" data-filter="all" aria-pressed="true">全部</button>
-        <button type="button" data-filter="0">单选</button>
-        <button type="button" data-filter="1">多选</button>
-        <button type="button" data-filter="3">判断</button>
-        <button type="button" data-filter="2">填空</button>
-        <button type="button" data-filter="4">简答</button>
-      </div>
-      <input id="search" class="field" placeholder="搜索题干、选项或答案">
-      <div class="list" id="list"></div>
-      <div class="pager">
-        <span id="page-info">0 题</span>
-        <div class="actions">
-          <button type="button" class="ghost tiny" id="prev-page">上一页</button>
-          <button type="button" class="ghost tiny" id="next-page">下一页</button>
+      <section class="bank" id="bank-view" hidden>
+        <div class="bank-toolbar">
+          <div class="filters" id="type-filters">
+            <button type="button" data-filter="all" aria-pressed="true">全部</button>
+            <button type="button" data-filter="0">单选</button>
+            <button type="button" data-filter="1">多选</button>
+            <button type="button" data-filter="3">判断</button>
+            <button type="button" data-filter="2">填空</button>
+            <button type="button" data-filter="4">简答</button>
+          </div>
+          <input id="search" class="field" placeholder="搜索题干、选项或答案">
         </div>
-      </div>
+        <div class="list" id="list"></div>
+        <div class="pager">
+          <span id="page-info">0 题</span>
+          <div class="actions">
+            <button type="button" class="ghost tiny" id="prev-page">上一页</button>
+            <button type="button" class="ghost tiny" id="next-page">下一页</button>
+          </div>
+        </div>
+      </section>
     </section>
   </main>
   <div class="modal" id="help-modal">
@@ -414,7 +439,7 @@
   </div>
   <script src="/exam-parse.js"></script>
   <script>
-    const PAGE_SIZE = 4;
+    const PAGE_SIZE = 8;
     const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const typeName = { "0": "单选", "1": "多选", "2": "填空", "3": "判断", "4": "简答" };
     const rules = {
@@ -483,11 +508,16 @@
       }).join("");
     };
 
-    const questionCard = (item, extra = "") => `
+    const questionNo = (item, fallback) => {
+      const no = String(item.no || fallback || "").trim();
+      return no ? `${no}. ` : "";
+    };
+
+    const questionCard = (item, extra = "", fallbackNo = "") => `
       <article class="item type-${escapeHtml(String(item.type || "0"))}">
         <div class="item-head">
           <span class="type-badge">${escapeHtml(typeName[item.type] || item.type || "")}</span>
-          <b>${escapeHtml(item.title)}</b>
+          <b>${escapeHtml(questionNo(item, fallbackNo) + item.title)}</b>
           ${extra}
         </div>
         <div class="choices">${renderChoices(item)}</div>
@@ -512,7 +542,7 @@
       previewPane.classList.toggle("watermark", !state.preview.length);
       const count = document.querySelector("#preview-count");
       count.innerHTML = `总计输入 <b class="${state.preview.length ? "count-ok" : "count-zero"}">${state.preview.length}</b> 道`;
-      preview.innerHTML = state.preview.map((item) => questionCard(item)).join("")
+      preview.innerHTML = state.preview.map((item, index) => questionCard(item, "", index + 1)).join("")
         || (filled ? "<p class='hint'>没有识别到题目，点「格式案例说明」对照格式。</p>" : "");
     };
 
@@ -534,6 +564,7 @@
       });
       document.querySelector("#batch-view").hidden = state.mode !== "batch";
       document.querySelector("#form").hidden = state.mode !== "single";
+      document.querySelector("#bank-view").hidden = state.mode !== "bank";
       document.querySelector("#commit").hidden = state.mode !== "batch";
     };
 
@@ -630,7 +661,7 @@
         const type = String(item.type || "0");
         if (counts[type] != null) counts[type] += 1;
       });
-      document.querySelector("#count").textContent = `(${state.questions.length})`;
+      document.querySelector("#bank-tab").textContent = `当前题库 (${state.questions.length})`;
       document.querySelector("#page-info").textContent = rows.length
         ? `第 ${state.page}/${pages} 页 · 本页 ${pageRows.length} · 筛选 ${rows.length}`
         : "没有匹配的题目";
@@ -640,7 +671,7 @@
         button.textContent = `${label} ${counts[filter] ?? 0}`;
         button.setAttribute("aria-pressed", String(filter === state.filterType));
       });
-      list.innerHTML = pageRows.map(({ item, index }) => questionCard(item, `<button class="danger tiny" data-index="${index}">删除</button>`)).join("")
+      list.innerHTML = pageRows.map(({ item, index }) => questionCard(item, `<button class="danger tiny" data-index="${index}">删除</button>`, index + 1)).join("")
         || `<p class="hint">${state.questions.length ? "没有匹配的题目。" : "还没有题目。"}</p>`;
     };
 
@@ -692,6 +723,9 @@
         batchInput.value = "";
         state.preview = [];
         renderPreview();
+        state.mode = "bank";
+        state.page = 1;
+        renderMode();
       } catch (error) {
         setStatus(error.message, false);
       }
@@ -774,6 +808,8 @@
         setStatus("已保存", true);
         resetForm();
         await loadQuestions();
+        state.mode = "bank";
+        renderMode();
       } catch (error) {
         setStatus(error.message, false);
       }

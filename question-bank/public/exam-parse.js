@@ -27,8 +27,15 @@ C、蒸腾作用
 D、渗透作用
 答案:B
 
+2.一年中白昼最长的节气是
+A、春分
+B、夏至
+C、秋分
+D、冬至
+答案:B
+
 多选题
-1.下列属于可再生资源的是
+3.下列属于可再生资源的是
 A、煤炭
 B、太阳能
 C、风能
@@ -36,16 +43,12 @@ D、石油
 答案:BC
 
 判断题
-1.地球绕太阳公转一周大约是一年
+4.地球绕太阳公转一周大约是一年
 答案:对
 
 填空题
-1.中国的首都是（）
+5.中国的首都是（）
 答案:北京
-
-简答题
-1.如何保持身体健康？
-答案:规律饮食、坚持锻炼，早睡早起，定期体检。
 `;
 
 const isSection = (line) => SECTION_TYPE[line.replace(/[:：]\s*$/, "")] != null;
@@ -65,6 +68,7 @@ const parseBlock = (lines, sectionType) => {
   const titleParts = [];
   const options = [];
   let answerRaw = "";
+  let no = "";
   for (const raw of lines) {
     const line = String(raw).trim();
     if (!line || isAnalysis(line)) continue;
@@ -77,7 +81,15 @@ const parseBlock = (lines, sectionType) => {
       options.push(option[2].trim());
       continue;
     }
-    if (!answerRaw) titleParts.push(line.replace(/^\d+\s*[.、．]\s*/, ""));
+    if (!answerRaw) {
+      const numbered = line.match(/^(\d+)\s*[.、．]\s*(.*)$/);
+      if (numbered && !no) {
+        no = numbered[1];
+        titleParts.push(numbered[2]);
+      } else {
+        titleParts.push(line.replace(/^\d+\s*[.、．]\s*/, ""));
+      }
+    }
   }
   const title = titleParts.join("").trim();
   if (!title || !answerRaw) return null;
@@ -110,7 +122,7 @@ const parseBlock = (lines, sectionType) => {
       ? answerRaw.split("|").map((item) => item.trim()).filter(Boolean)
       : [answerRaw];
   }
-  return { title, type, options: nextOptions, answers };
+  return { no, title, type, options: nextOptions, answers };
 };
 
 const parseExamText = (text) => {

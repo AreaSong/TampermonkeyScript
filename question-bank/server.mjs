@@ -208,6 +208,7 @@ const handleAdd = (questions, body) => {
   }
   const next = {
     title,
+    no: body.no == null ? "" : String(body.no).trim(),
     type: body.type == null ? "" : String(body.type),
     options: Array.isArray(body.options) ? body.options.map((item) => String(item)) : [],
     answers
