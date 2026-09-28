@@ -249,6 +249,24 @@
     }
     .bank-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
     .bank-toolbar .field { margin: 0; min-width: 200px; max-width: none; flex: 1; }
+    .probe-bar { display: flex; gap: 8px; align-items: center; }
+    .probe-bar .field { margin: 0; flex: 1; min-width: 200px; }
+    .probe-result {
+      margin: 0;
+      padding: 8px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      line-height: 1.5;
+      display: grid;
+      gap: 2px;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+    }
+    .probe-result[hidden] { display: none !important; }
+    .probe-result.is-hit { background: #f0f9eb; color: #529b2e; border: 1px solid #c2e7b0; }
+    .probe-result.is-miss { background: #fef0f0; color: #c45656; border: 1px solid #fbc4c4; }
+    .probe-result strong { font-size: 13px; }
     .bank-body {
       min-height: 0;
       flex: 1;
@@ -355,6 +373,8 @@
     }
     .list .item.is-open .choices { display: grid; }
     .list .item.is-editing { border-color: var(--accent); }
+    .list .item.is-probe { border-color: var(--ok); background: #f8fdf5; }
+    .list .item.is-probe-near { border-color: var(--bad); background: #fff8f8; }
     .item.type-0 { border-left: 3px solid var(--type-0); }
     .item.type-1 { border-left: 3px solid var(--type-1); }
     .item.type-2 { border-left: 3px solid var(--type-2); }
@@ -525,6 +545,11 @@
           </div>
           <input id="search" class="field" placeholder="搜索题干、选项或答案">
         </div>
+        <div class="probe-bar">
+          <input id="probe-input" class="field" placeholder="把考试里看到的题干贴这里，试搜会不会命中">
+          <button type="button" id="probe">试搜</button>
+        </div>
+        <button type="button" class="probe-result" id="probe-result" hidden></button>
         <div class="bank-body" id="bank-body">
           <aside class="bank-editor" id="bank-editor" hidden>
             <div class="bank-editor-head">
@@ -596,7 +621,9 @@
       filterType: "all",
       open: new Set(),
       editing: null,
-      dirty: false
+      dirty: false,
+      probeIndex: null,
+      probeHit: false
     };
 
     const fields = document.querySelector("#type-fields");
@@ -697,7 +724,7 @@
       const open = state.open.has(index);
       const type = String(item.type || "0");
       return `
-        <article class="item type-${escapeHtml(type)}${open ? " is-open" : ""}${state.editing === index ? " is-editing" : ""}" data-index="${index}">
+        <article class="item type-${escapeHtml(type)}${open ? " is-open" : ""}${state.editing === index ? " is-editing" : ""}${state.probeIndex === index ? (state.probeHit ? " is-probe" : " is-probe-near") : ""}" data-index="${index}">
           <div class="bank-row" title="${open ? "点击收起" : "点击展开选项"}">
             <span class="type-badge">${escapeHtml(typeName[item.type] || item.type || "")}</span>
             <div class="bank-main">
@@ -926,6 +953,10 @@
     };
 
     const renderList = () => {
+      if (state.probeIndex != null && (state.probeIndex < 0 || state.probeIndex >= state.questions.length)) {
+        state.probeIndex = null;
+        state.probeHit = false;
+      }
       const rows = filteredQuestions();
       const counts = { all: state.questions.length, "0": 0, "1": 0, "2": 0, "3": 0, "4": 0 };
       state.questions.forEach((item) => {
@@ -944,6 +975,69 @@
       });
       list.innerHTML = rows.map(({ item, index }) => bankItem(item, index, index + 1)).join("")
         || `<p class="hint">${state.questions.length ? "没有匹配的题目。" : "还没有题目。"}</p>`;
+    };
+
+    const showProbeResult = (hit, html, text = "") => {
+      const box = document.querySelector("#probe-result");
+      box.hidden = false;
+      box.className = `probe-result ${hit ? "is-hit" : "is-miss"}`;
+      if (html) box.innerHTML = html;
+      else box.textContent = text;
+    };
+
+    const revealProbed = () => {
+      if (state.probeIndex == null) return;
+      let row = list.querySelector(`.item[data-index="${state.probeIndex}"]`);
+      if (!row) {
+        state.filterType = "all";
+        state.query = "";
+        document.querySelector("#search").value = "";
+        renderList();
+        row = list.querySelector(`.item[data-index="${state.probeIndex}"]`);
+      }
+      if (!row) return;
+      state.open.add(state.probeIndex);
+      row.classList.add("is-open");
+      const heading = row.querySelector(".bank-row");
+      if (heading) heading.title = "点击收起";
+      row.scrollIntoView({ block: "nearest" });
+    };
+
+    const runProbe = async () => {
+      const title = document.querySelector("#probe-input").value.trim();
+      if (!title) {
+        state.probeIndex = null;
+        state.probeHit = false;
+        renderList();
+        showProbeResult(false, "", "请填写题干");
+        return;
+      }
+      try {
+        const result = await (await fetch("/probe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: title })
+        })).json();
+        state.probeIndex = Number.isInteger(result.index) && result.index >= 0 ? result.index : null;
+        state.probeHit = Boolean(result.matched);
+        const question = result.question;
+        if (!question) {
+          showProbeResult(false, "", result.msg || "未命中");
+        } else {
+          const kind = typeName[question.type] || "";
+          const answers = (question.answers || []).join(" / ") || "暂无答案";
+          const html = result.matched
+            ? `<strong>${escapeHtml(result.msg)}</strong><span>${escapeHtml(kind)} ${escapeHtml(question.title)}</span><span>答案：${escapeHtml(answers)}</span>`
+            : `<strong>${escapeHtml(result.msg)}</strong><span>最接近：${escapeHtml(kind)} ${escapeHtml(question.title)}</span>`;
+          showProbeResult(result.matched, html);
+        }
+        renderList();
+        revealProbed();
+      } catch (error) {
+        state.probeIndex = null;
+        state.probeHit = false;
+        showProbeResult(false, "", error.message || "试搜失败");
+      }
     };
 
     const loadQuestions = async () => {
@@ -1136,6 +1230,16 @@
       renderList();
     });
 
+    document.querySelector("#probe").addEventListener("click", () => {
+      runProbe().catch((error) => showProbeResult(false, "", error.message || "试搜失败"));
+    });
+    document.querySelector("#probe-input").addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      runProbe().catch((error) => showProbeResult(false, "", error.message || "试搜失败"));
+    });
+    document.querySelector("#probe-result").addEventListener("click", () => revealProbed());
+
     document.querySelector("#type-filters").addEventListener("click", (event) => {
       const button = event.target.closest("button[data-filter]");
       if (!button) return;
@@ -1189,6 +1293,12 @@
         state.open = next;
         if (state.editing === deleted) closeEditor();
         else if (Number.isInteger(state.editing) && state.editing > deleted) state.editing -= 1;
+        if (state.probeIndex === deleted) {
+          state.probeIndex = null;
+          state.probeHit = false;
+        } else if (Number.isInteger(state.probeIndex) && state.probeIndex > deleted) {
+          state.probeIndex -= 1;
+        }
         await loadQuestions();
         mountForm();
         setStatus("已删除", true, "bank");

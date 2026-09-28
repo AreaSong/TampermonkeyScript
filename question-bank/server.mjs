@@ -145,24 +145,31 @@ const normalizeAnswers = (answers) => {
   return answers.map((item) => String(item || "").trim()).filter(Boolean);
 };
 
-const findQuestion = (questions, title, type) => {
+const rankQuestion = (questions, title, type) => {
   const needle = normalizeTitle(title);
-  if (!needle) return null;
+  if (!needle) return { item: null, index: -1, score: -1 };
   let best = null;
+  let bestIndex = -1;
   let bestScore = -1;
-  for (const item of questions) {
+  questions.forEach((item, index) => {
     const hay = normalizeTitle(item.title);
-    if (!hay) continue;
+    if (!hay) return;
     let score = scoreTitle(needle, hay);
     if (type && item.type != null && String(item.type) === String(type) && score >= MATCH_THRESHOLD) {
       score += 1;
     }
     if (score > bestScore) {
       best = item;
+      bestIndex = index;
       bestScore = score;
     }
-  }
-  return bestScore >= MATCH_THRESHOLD ? best : null;
+  });
+  return { item: best, index: bestIndex, score: bestScore };
+};
+
+const findQuestion = (questions, title, type) => {
+  const ranked = rankQuestion(questions, title, type);
+  return ranked.score >= MATCH_THRESHOLD ? ranked.item : null;
 };
 
 const readBody = (req) => new Promise((resolve, reject) => {
@@ -198,6 +205,50 @@ const handleSearch = (questions, body) => {
     return miss("未查询到答案");
   }
   return ok(answers, questions.length);
+};
+
+const probeQuestion = (item) => {
+  if (!item) return null;
+  return {
+    title: item.title || "",
+    no: item.no == null ? "" : String(item.no),
+    type: item.type == null ? "" : String(item.type),
+    options: Array.isArray(item.options) ? item.options.map((entry) => String(entry)) : [],
+    answers: normalizeAnswers(item.answers)
+  };
+};
+
+const handleProbe = (questions, body) => {
+  if (!isAuthorized(body)) {
+    return { status: 401, payload: { code: 401, matched: false, threshold: MATCH_THRESHOLD, score: 0, index: -1, question: null, answers: [], msg: "密钥错误" } };
+  }
+  const title = String(body.question || body.title || "").trim();
+  if (!title) {
+    return { status: 400, payload: { code: 400, matched: false, threshold: MATCH_THRESHOLD, score: 0, index: -1, question: null, answers: [], msg: "请填写题干" } };
+  }
+  const ranked = rankQuestion(questions, title, body.type);
+  const close = ranked.score >= 30;
+  const question = close ? probeQuestion(ranked.item) : null;
+  const answers = question?.answers || [];
+  const matched = ranked.score >= MATCH_THRESHOLD && answers.length > 0;
+  let msg = `不会作答 · ${Math.max(0, ranked.score)} 分（需 ≥ ${MATCH_THRESHOLD}）`;
+  if (!questions.length) msg = "题库还没有题目";
+  else if (matched) msg = `会作答 · ${ranked.score} 分`;
+  else if (ranked.score >= MATCH_THRESHOLD) msg = `找到题但没有答案 · ${ranked.score} 分`;
+  else if (question) msg = `不会作答 · 最接近 ${ranked.score} 分（需 ≥ ${MATCH_THRESHOLD}）`;
+  return {
+    status: 200,
+    payload: {
+      code: 200,
+      matched,
+      threshold: MATCH_THRESHOLD,
+      score: Math.max(0, ranked.score),
+      index: close ? ranked.index : -1,
+      question,
+      answers: matched ? answers : [],
+      msg
+    }
+  };
 };
 
 const handleAdd = (questions, body) => {
@@ -333,6 +384,12 @@ const route = async (req, res) => {
     json(res, 200, handleSearch(questions, body));
     return;
   }
+  if (req.method === "POST" && url.pathname === "/probe") {
+    const body = await readBody(req);
+    const result = handleProbe(questions, body);
+    json(res, result.status, result.payload);
+    return;
+  }
   if (req.method === "POST" && url.pathname === "/questions") {
     const body = await readBody(req);
     const result = handleAdd(questions, body);
@@ -372,6 +429,7 @@ server.listen(PORT, HOST, () => {
   console.log(`本地题库已启动：http://${HOST}:${PORT}`);
   console.log(`管理页：http://${HOST}:${PORT}/`);
   console.log("搜题：POST /search");
+  console.log("试搜：POST /probe");
   console.log("加题：POST /questions");
   console.log("检查：GET  /health");
   console.log(`题库文件：${DATA_FILE}`);
