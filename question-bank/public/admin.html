@@ -532,6 +532,8 @@
   <script src="/exam-parse.js"></script>
   <script>
     const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const MODES = new Set(["batch", "single", "bank"]);
+    const readMode = () => (MODES.has(location.hash.slice(1)) ? location.hash.slice(1) : "batch");
     const typeName = { "0": "单选", "1": "多选", "2": "填空", "3": "判断", "4": "简答" };
     const rules = {
       "0": "单选：可添加任意个选项，点左侧圆点标记唯一正确答案。",
@@ -541,7 +543,7 @@
       "4": "简答：直接写参考答案全文。"
     };
     const state = {
-      mode: "batch",
+      mode: readMode(),
       type: "0",
       options: [{ text: "", correct: true }, { text: "", correct: false }],
       blanks: [""],
@@ -754,6 +756,8 @@
       document.querySelector("#commit").hidden = state.mode !== "batch";
       if (state.mode !== "bank") closeEditor();
       mountForm();
+      const hash = `#${state.mode}`;
+      if (location.hash !== hash) history.replaceState(null, "", hash);
     };
 
     const renderTabs = () => {
@@ -885,6 +889,12 @@
       const button = event.target.closest("button[data-mode]");
       if (!button) return;
       state.mode = button.dataset.mode;
+      renderMode();
+    });
+    window.addEventListener("hashchange", () => {
+      const mode = readMode();
+      if (mode === state.mode) return;
+      state.mode = mode;
       renderMode();
     });
 
