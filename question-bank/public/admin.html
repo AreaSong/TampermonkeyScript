@@ -58,6 +58,11 @@
       gap: 8px;
       align-items: center;
     }
+    .mode-cluster {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
     .mode-tabs button {
       border: 0;
       border-radius: 16px;
@@ -68,6 +73,10 @@
       cursor: pointer;
     }
     .mode-tabs button[aria-pressed="true"] { background: #ecf5ff; color: var(--accent); }
+    #add-question {
+      border-radius: 16px;
+      padding: 7px 14px;
+    }
     button, .file-btn {
       border: 0;
       border-radius: 4px;
@@ -153,18 +162,6 @@
       font-size: 13px;
     }
     .preview { padding: 10px 12px 16px; }
-    .single {
-      height: 100%;
-      overflow: auto;
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 4px 4px 24px;
-    }
-    #single-view {
-      min-height: 0;
-      overflow: auto;
-    }
-    #single-view .single { display: block; }
     .type-tabs { margin: 0 0 12px; }
     .type-tabs button[data-type="0"], .filters button[data-filter="0"] { color: var(--type-0); background: #ecf5ff; }
     .type-tabs button[data-type="1"], .filters button[data-filter="1"] { color: #b88230; background: #fdf6ec; }
@@ -214,8 +211,36 @@
       align-items: center;
       margin-bottom: 8px;
     }
-    .judge-row { display: flex; gap: 8px; margin-bottom: 12px; }
-    .judge-row button[aria-pressed="true"] { background: var(--ok); }
+    .judge-row {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .judge-option {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 10px;
+      border: 1px solid #ebeef5;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .judge-option input {
+      width: auto;
+      margin: 0;
+      accent-color: var(--ok);
+    }
+    .judge-option:has(input:checked) {
+      border-color: #c2e7b0;
+      background: #f0f9eb;
+      color: #529b2e;
+    }
+    .judge-option:has(input:checked) .choice-letter {
+      border-color: var(--ok);
+      background: var(--ok);
+      color: #fff;
+    }
     .bank {
       min-height: 0;
       display: flex;
@@ -231,7 +256,7 @@
       grid-template-columns: minmax(0, 1fr);
       gap: 12px;
     }
-    .bank-body.is-editing { grid-template-columns: minmax(0, 1fr) min(420px, 40%); }
+    .bank-body.is-editing { grid-template-columns: min(420px, 40%) minmax(0, 1fr); }
     .bank-editor {
       min-height: 0;
       overflow: hidden;
@@ -263,6 +288,11 @@
       bottom: 0;
       background: #fafafa;
       padding: 10px 0 0;
+      align-items: center;
+    }
+    .bank-editor .actions .status {
+      flex: 1 1 100%;
+      margin: 0;
     }
     .list {
       min-height: 0;
@@ -386,6 +416,8 @@
     .status.ok { color: var(--ok); }
     .status.bad { color: var(--bad); }
     .pager { justify-content: space-between; margin-top: 8px; color: var(--muted); font-size: 12px; }
+    .pager-meta { display: flex; gap: 12px; align-items: center; min-width: 0; }
+    .pager-meta .status { margin: 0; }
     .modal {
       position: fixed;
       inset: 0;
@@ -421,15 +453,17 @@
     <header class="topbar">
       <div>
         <h1>AreaSong 题库</h1>
-        <p class="lede">录入用输入区检查区；看题请到「当前题库」，整页浏览。</p>
+        <p class="lede">批量粘贴走导入；单题新增和编辑在「当前题库」。</p>
       </div>
       <p class="status" id="status"></p>
     </header>
     <div class="modebar">
-      <div class="mode-tabs" id="mode-tabs">
-        <button type="button" data-mode="batch" aria-pressed="true">批量导入</button>
-        <button type="button" data-mode="single">单题导入</button>
-        <button type="button" data-mode="bank" id="bank-tab">当前题库</button>
+      <div class="mode-cluster">
+        <div class="mode-tabs" id="mode-tabs">
+          <button type="button" data-mode="batch" aria-pressed="true">批量导入</button>
+          <button type="button" data-mode="bank" id="bank-tab">当前题库</button>
+        </div>
+        <button type="button" id="add-question" hidden>新增题目</button>
       </div>
       <button type="button" id="commit">录入试题</button>
     </div>
@@ -474,11 +508,11 @@
         <textarea id="title" class="field" placeholder="把完整题干贴在这里"></textarea>
         <div id="type-fields"></div>
         <div class="actions">
-          <button type="submit" id="form-submit">保存到题库</button>
+          <button type="submit" id="form-submit">保存</button>
           <button type="button" class="ghost" id="reset">清空</button>
+          <p class="status" id="editor-status"></p>
         </div>
       </form>
-      <div id="single-view" hidden></div>
       <section class="bank" id="bank-view" hidden>
         <div class="bank-toolbar">
           <div class="filters" id="type-filters">
@@ -490,19 +524,21 @@
             <button type="button" data-filter="4">简答</button>
           </div>
           <input id="search" class="field" placeholder="搜索题干、选项或答案">
-          <button type="button" id="add-question">新增题目</button>
         </div>
         <div class="bank-body" id="bank-body">
-          <div class="list" id="list"></div>
           <aside class="bank-editor" id="bank-editor" hidden>
             <div class="bank-editor-head">
               <strong id="editor-heading">编辑题目</strong>
               <button type="button" class="ghost tiny" id="close-editor">取消</button>
             </div>
           </aside>
+          <div class="list" id="list"></div>
         </div>
         <div class="pager">
-          <span id="page-info">共 0 题</span>
+          <div class="pager-meta">
+            <span id="page-info">共 0 题</span>
+            <span class="status" id="bank-status"></span>
+          </div>
           <div class="actions">
             <button type="button" class="ghost tiny" id="expand-all">全部展开</button>
             <button type="button" class="ghost tiny" id="collapse-all">全部收起</button>
@@ -532,13 +568,18 @@
   <script src="/exam-parse.js"></script>
   <script>
     const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const MODES = new Set(["batch", "single", "bank"]);
-    const readMode = () => (MODES.has(location.hash.slice(1)) ? location.hash.slice(1) : "batch");
+    const MODES = new Set(["batch", "bank"]);
+    const startWithNew = location.hash.slice(1) === "single";
+    const readMode = () => {
+      const hash = location.hash.slice(1);
+      if (hash === "single") return "bank";
+      return MODES.has(hash) ? hash : "batch";
+    };
     const typeName = { "0": "单选", "1": "多选", "2": "填空", "3": "判断", "4": "简答" };
     const rules = {
       "0": "单选：可添加任意个选项，点左侧圆点标记唯一正确答案。",
       "1": "多选：可添加任意个选项，勾选所有正确项。",
-      "3": "判断：只选正确或错误。",
+      "3": "判断：点选正确或错误。",
       "2": "填空：一空一行，空不够就点添加空。",
       "4": "简答：直接写参考答案全文。"
     };
@@ -554,15 +595,17 @@
       query: "",
       filterType: "all",
       open: new Set(),
-      editing: null
+      editing: null,
+      dirty: false
     };
 
     const fields = document.querySelector("#type-fields");
     const form = document.querySelector("#form");
-    const singleView = document.querySelector("#single-view");
     const bankBody = document.querySelector("#bank-body");
     const bankEditor = document.querySelector("#bank-editor");
     const status = document.querySelector("#status");
+    const editorStatus = document.querySelector("#editor-status");
+    const bankStatus = document.querySelector("#bank-status");
     const list = document.querySelector("#list");
     const batchInput = document.querySelector("#batch-input");
     const preview = document.querySelector("#preview");
@@ -574,9 +617,32 @@
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;");
 
-    const setStatus = (text, ok) => {
-      status.textContent = text;
-      status.className = `status ${ok ? "ok" : "bad"}`;
+    const setStatus = (text, ok, where) => {
+      const slots = { top: status, editor: editorStatus, bank: bankStatus };
+      Object.values(slots).forEach((el) => {
+        el.textContent = "";
+        el.className = "status";
+      });
+      const slot = slots[where] || slots[
+        state.mode === "batch" ? "top" : (state.editing != null ? "editor" : "bank")
+      ];
+      slot.textContent = text;
+      slot.className = `status ${ok ? "ok" : "bad"}`;
+    };
+
+    const confirmLeave = () => !state.dirty || window.confirm("题目尚未保存，确定离开？");
+
+    const leaveEditor = () => {
+      if (state.editing == null) return true;
+      if (!confirmLeave()) return false;
+      state.dirty = false;
+      closeEditor();
+      return true;
+    };
+
+    const markDirty = () => {
+      if (state.editing == null) return;
+      state.dirty = true;
     };
 
     const sameText = (left, right) => String(left).trim() === String(right).trim();
@@ -632,7 +698,7 @@
       const type = String(item.type || "0");
       return `
         <article class="item type-${escapeHtml(type)}${open ? " is-open" : ""}${state.editing === index ? " is-editing" : ""}" data-index="${index}">
-          <div class="bank-row">
+          <div class="bank-row" title="${open ? "点击收起" : "点击展开选项"}">
             <span class="type-badge">${escapeHtml(typeName[item.type] || item.type || "")}</span>
             <div class="bank-main">
               <b class="bank-title">${escapeHtml(questionNo(item, fallbackNo) + item.title)}</b>
@@ -640,7 +706,6 @@
             </div>
             <div class="actions">
               <button type="button" class="ghost tiny" data-edit="${index}">编辑</button>
-              <button type="button" class="ghost tiny" data-toggle>${open ? "收起" : "展开"}</button>
               <button type="button" class="danger tiny" data-index="${index}">删除</button>
             </div>
           </div>
@@ -676,34 +741,28 @@
         state.preview = parseInput(batchInput.value);
         renderPreview();
         if (!silent) {
-          setStatus(state.preview.length ? `已识别 ${state.preview.length} 道题` : "没有识别到题目", Boolean(state.preview.length));
+          setStatus(state.preview.length ? `已识别 ${state.preview.length} 道题` : "没有识别到题目", Boolean(state.preview.length), "top");
         }
       } catch (error) {
         state.preview = [];
         renderPreview();
-        if (!silent) setStatus(error.message, false);
+        if (!silent) setStatus(error.message, false, "top");
       }
     };
 
     const closeEditor = () => {
       state.editing = null;
+      state.dirty = false;
       bankEditor.hidden = true;
       bankBody.classList.remove("is-editing");
     };
 
     const mountForm = () => {
-      if (state.mode === "single") {
-        singleView.appendChild(form);
-        form.hidden = false;
-        document.querySelector("#form-submit").textContent = "保存到题库";
-        return;
-      }
       if (state.mode === "bank" && state.editing != null) {
         bankEditor.appendChild(form);
         form.hidden = false;
         bankEditor.hidden = false;
         bankBody.classList.add("is-editing");
-        document.querySelector("#form-submit").textContent = "保存";
         return;
       }
       form.hidden = true;
@@ -733,7 +792,13 @@
     };
 
     const openEditor = (target) => {
+      if (state.editing === target && target !== "new") {
+        document.querySelector("#title").focus();
+        return;
+      }
+      if (state.editing != null && state.dirty && !confirmLeave()) return;
       state.editing = target;
+      state.dirty = false;
       if (target === "new") {
         document.querySelector("#editor-heading").textContent = "新增题目";
         resetForm();
@@ -743,6 +808,7 @@
       }
       mountForm();
       renderList();
+      setStatus("", true, "editor");
       document.querySelector("#title").focus();
     };
 
@@ -751,9 +817,9 @@
         button.setAttribute("aria-pressed", String(button.dataset.mode === state.mode));
       });
       document.querySelector("#batch-view").hidden = state.mode !== "batch";
-      singleView.hidden = state.mode !== "single";
       document.querySelector("#bank-view").hidden = state.mode !== "bank";
       document.querySelector("#commit").hidden = state.mode !== "batch";
+      document.querySelector("#add-question").hidden = state.mode !== "bank";
       if (state.mode !== "bank") closeEditor();
       mountForm();
       const hash = `#${state.mode}`;
@@ -784,8 +850,16 @@
       if (state.type === "3") {
         fields.innerHTML = `
           <div class="judge-row">
-            <button type="button" data-judge="正确" aria-pressed="${state.judge === "正确"}">正确</button>
-            <button type="button" data-judge="错误" aria-pressed="${state.judge === "错误"}">错误</button>
+            <label class="judge-option">
+              <input type="radio" name="judge" value="正确" ${state.judge === "正确" ? "checked" : ""}>
+              <span class="choice-letter">A</span>
+              <span>正确</span>
+            </label>
+            <label class="judge-option">
+              <input type="radio" name="judge" value="错误" ${state.judge === "错误" ? "checked" : ""}>
+              <span class="choice-letter">B</span>
+              <span>错误</span>
+            </label>
           </div>`;
         return;
       }
@@ -817,7 +891,10 @@
         if (state.type === "1" && answers.length < 1) throw new Error("多选至少勾选 1 个正确答案");
         return { title, type: state.type, options, answers };
       }
-      if (state.type === "3") return { title, type: "3", options: ["正确", "错误"], answers: [state.judge] };
+      if (state.type === "3") {
+        const judge = fields.querySelector("input[name='judge']:checked")?.value || state.judge;
+        return { title, type: "3", options: ["正确", "错误"], answers: [judge] };
+      }
       if (state.type === "2") {
         const answers = [...fields.querySelectorAll("[data-blank]")]
           .map((input) => input.value.trim())
@@ -881,19 +958,37 @@
         body: JSON.stringify({ questions: items })
       })).json();
       if (result.code !== 200) throw new Error(result.msg || "导入失败");
-      setStatus(result.msg || "导入完成", true);
       await loadQuestions();
+      return result.msg || "导入完成";
     };
 
     document.querySelector("#mode-tabs").addEventListener("click", (event) => {
       const button = event.target.closest("button[data-mode]");
       if (!button) return;
-      state.mode = button.dataset.mode;
+      const next = button.dataset.mode;
+      if (next === state.mode) return;
+      if (state.mode === "bank" && !leaveEditor()) return;
+      state.mode = next;
       renderMode();
     });
     window.addEventListener("hashchange", () => {
+      if (location.hash.slice(1) === "single") {
+        if (state.mode === "bank" && state.editing != null && state.dirty && !confirmLeave()) {
+          history.replaceState(null, "", `#${state.mode}`);
+          return;
+        }
+        state.dirty = false;
+        state.mode = "bank";
+        renderMode();
+        openEditor("new");
+        return;
+      }
       const mode = readMode();
       if (mode === state.mode) return;
+      if (state.mode === "bank" && !leaveEditor()) {
+        history.replaceState(null, "", `#${state.mode}`);
+        return;
+      }
       state.mode = mode;
       renderMode();
     });
@@ -907,7 +1002,7 @@
       batchInput.value = "";
       state.preview = [];
       renderPreview();
-      setStatus("", true);
+      setStatus("", true, "top");
     });
 
     document.querySelector("#detect").addEventListener("click", () => detectFormat(false));
@@ -922,14 +1017,15 @@
       try {
         if (!state.preview.length) detectFormat();
         if (!state.preview.length) throw new Error("检查区还没有题目");
-        await importQuestions(state.preview);
+        const msg = await importQuestions(state.preview);
         batchInput.value = "";
         state.preview = [];
         renderPreview();
         state.mode = "bank";
         renderMode();
+        setStatus(msg, true, "bank");
       } catch (error) {
-        setStatus(error.message, false);
+        setStatus(error.message, false, "top");
       }
     });
 
@@ -951,17 +1047,27 @@
       if ((state.type === "0" || state.type === "1") && state.options.length < 2) {
         state.options = [{ text: "", correct: true }, { text: "", correct: false }];
       }
+      markDirty();
       renderTypeFields();
     });
+
+    document.querySelector("#title").addEventListener("input", markDirty);
 
     fields.addEventListener("input", (event) => {
       if (event.target.dataset.text != null) state.options[Number(event.target.dataset.text)].text = event.target.value;
       if (event.target.dataset.blank != null) state.blanks[Number(event.target.dataset.blank)] = event.target.value;
       if (event.target.id === "essay") state.essay = event.target.value;
+      markDirty();
     });
 
     fields.addEventListener("change", (event) => {
+      if (event.target.name === "judge") {
+        state.judge = event.target.value;
+        markDirty();
+        return;
+      }
       if (event.target.name !== "correct") return;
+      markDirty();
       if (state.type === "0") {
         state.options.forEach((item, index) => {
           item.correct = String(index) === event.target.dataset.index;
@@ -974,26 +1080,25 @@
     fields.addEventListener("click", (event) => {
       if (event.target.id === "add-option") {
         state.options.push({ text: "", correct: false });
+        markDirty();
         renderTypeFields();
         return;
       }
       if (event.target.id === "add-blank") {
         state.blanks.push("");
-        renderTypeFields();
-        return;
-      }
-      if (event.target.dataset.judge) {
-        state.judge = event.target.dataset.judge;
+        markDirty();
         renderTypeFields();
         return;
       }
       if (event.target.dataset.remove != null && state.options.length > 2) {
         state.options.splice(Number(event.target.dataset.remove), 1);
         if (state.type === "0" && !state.options.some((item) => item.correct)) state.options[0].correct = true;
+        markDirty();
         renderTypeFields();
       }
       if (event.target.dataset.removeBlank != null && state.blanks.length > 1) {
         state.blanks.splice(Number(event.target.dataset.removeBlank), 1);
+        markDirty();
         renderTypeFields();
       }
     });
@@ -1010,25 +1115,20 @@
           body: JSON.stringify(isUpdate ? { ...payload, index: editing } : payload)
         })).json();
         if (result.code !== 200) throw new Error(result.msg || "保存失败");
-        setStatus(isUpdate ? "已更新" : "已保存", true);
         await loadQuestions();
-        if (state.mode === "bank") {
-          closeEditor();
-          mountForm();
-          renderList();
-        } else {
-          resetForm();
-          state.mode = "bank";
-          renderMode();
-        }
+        closeEditor();
+        mountForm();
+        renderList();
+        setStatus(isUpdate ? "已更新" : "已保存", true, "bank");
       } catch (error) {
-        setStatus(error.message, false);
+        setStatus(error.message, false, "editor");
       }
     });
 
     document.querySelector("#reset").addEventListener("click", () => {
       resetForm();
-      setStatus("", true);
+      markDirty();
+      setStatus("", true, "editor");
     });
 
     document.querySelector("#search").addEventListener("input", (event) => {
@@ -1055,7 +1155,7 @@
 
     document.querySelector("#add-question").addEventListener("click", () => openEditor("new"));
     document.querySelector("#close-editor").addEventListener("click", () => {
-      closeEditor();
+      if (!leaveEditor()) return;
       mountForm();
       renderList();
     });
@@ -1069,13 +1169,16 @@
       const remove = event.target.closest("button[data-index]");
       if (remove) {
         const deleted = Number(remove.dataset.index);
+        const item = state.questions[deleted];
+        const label = String(item?.title || "这道题").trim().slice(0, 40);
+        if (!window.confirm(`确定删除「${label}」？`)) return;
         const result = await (await fetch("/questions", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ index: deleted })
         })).json();
         if (result.code !== 200) {
-          setStatus(result.msg || "删除失败", false);
+          setStatus(result.msg || "删除失败", false, "bank");
           return;
         }
         const next = new Set();
@@ -1086,11 +1189,12 @@
         state.open = next;
         if (state.editing === deleted) closeEditor();
         else if (Number.isInteger(state.editing) && state.editing > deleted) state.editing -= 1;
-        setStatus("已删除", true);
         await loadQuestions();
         mountForm();
+        setStatus("已删除", true, "bank");
         return;
       }
+      if (event.target.closest(".actions")) return;
       const row = event.target.closest(".bank-row");
       if (!row) return;
       const item = row.closest(".item[data-index]");
@@ -1099,14 +1203,23 @@
       if (state.open.has(index)) state.open.delete(index);
       else state.open.add(index);
       item.classList.toggle("is-open", state.open.has(index));
-      const toggle = item.querySelector("[data-toggle]");
-      if (toggle) toggle.textContent = state.open.has(index) ? "收起" : "展开";
+      row.title = state.open.has(index) ? "点击收起" : "点击展开选项";
+    });
+
+    window.addEventListener("beforeunload", (event) => {
+      if (!state.dirty) return;
+      event.preventDefault();
+      event.returnValue = "";
     });
 
     renderMode();
     renderTypeFields();
     renderPreview();
-    loadQuestions().catch(() => setStatus("题库服务未启动", false));
+    loadQuestions()
+      .then(() => {
+        if (startWithNew) openEditor("new");
+      })
+      .catch(() => setStatus("题库服务未启动", false, "top"));
   </script>
 </body>
 </html>
