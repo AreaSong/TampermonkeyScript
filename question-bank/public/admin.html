@@ -121,13 +121,13 @@
       display: grid;
       gap: 8px;
       align-content: start;
-      grid-auto-rows: 112px;
+      grid-auto-rows: 128px;
     }
     .item {
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
-      height: 112px;
+      gap: 4px;
+      height: 128px;
       overflow: hidden;
       padding: 10px 12px;
       border: 1px solid var(--line);
@@ -137,11 +137,12 @@
     .item b {
       display: -webkit-box;
       overflow: hidden;
-      -webkit-line-clamp: 2;
+      -webkit-line-clamp: 1;
       -webkit-box-orient: vertical;
       font-size: 14px;
       line-height: 1.35;
     }
+    .item .actions { margin-top: auto; }
     .meta {
       color: var(--muted);
       font-size: 12px;
@@ -354,7 +355,7 @@
       const query = state.query.trim().toLowerCase();
       return state.questions.map((item, index) => ({ item, index })).filter(({ item }) => {
         if (!query) return true;
-        return `${item.title} ${(item.answers || []).join(" ")}`.toLowerCase().includes(query);
+        return `${item.title} ${(item.options || []).join(" ")} ${(item.answers || []).join(" ")}`.toLowerCase().includes(query);
       });
     };
 
@@ -368,13 +369,17 @@
       document.querySelector("#page-info").textContent = rows.length
         ? `第 ${state.page}/${pages} 页 · 本页 ${pageRows.length} · 筛选 ${rows.length}`
         : "没有匹配的题目";
-      list.innerHTML = pageRows.map(({ item, index }) => `
+      list.innerHTML = pageRows.map(({ item, index }) => {
+        const options = (item.options || []).map((option) => String(option).trim()).filter(Boolean);
+        return `
         <article class="item">
           <b>${escapeHtml(item.title)}</b>
+          <div class="meta">选项：${escapeHtml(options.length ? options.join(" / ") : "无")}</div>
           <div class="meta">${typeName[item.type] || item.type} · 答案：${escapeHtml((item.answers || []).join(" / "))}</div>
           <div class="actions"><button class="danger tiny" data-index="${index}">删除</button></div>
         </article>
-      `).join("") || "<p class='hint'>还没有题目。</p>";
+      `;
+      }).join("") || "<p class='hint'>还没有题目。</p>";
     };
 
     const loadQuestions = async () => {
