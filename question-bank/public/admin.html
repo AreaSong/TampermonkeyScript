@@ -223,9 +223,9 @@
       min-height: 0;
       overflow: auto;
       display: grid;
-      gap: 12px;
+      gap: 6px;
       align-content: start;
-      max-width: 820px;
+      max-width: 960px;
       width: 100%;
       margin: 0 auto;
       padding-bottom: 16px;
@@ -239,6 +239,48 @@
       border-radius: 4px;
       background: #fff;
     }
+    .list .item {
+      gap: 0;
+      padding: 0;
+    }
+    .bank-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 8px 10px;
+      cursor: pointer;
+    }
+    .bank-main {
+      flex: 1;
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+    .bank-title {
+      display: -webkit-box;
+      overflow: hidden;
+      font-size: 14px;
+      line-height: 1.45;
+      font-weight: 600;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+    .list .item.is-open .bank-title { -webkit-line-clamp: unset; }
+    .bank-answer {
+      min-width: 0;
+      overflow: hidden;
+      color: #529b2e;
+      font-size: 13px;
+      line-height: 1.4;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .bank-row .actions { flex: none; }
+    .list .item .choices {
+      display: none;
+      padding: 0 10px 10px;
+    }
+    .list .item.is-open .choices { display: grid; }
     .item.type-0 { border-left: 3px solid var(--type-0); }
     .item.type-1 { border-left: 3px solid var(--type-1); }
     .item.type-2 { border-left: 3px solid var(--type-2); }
@@ -406,10 +448,10 @@
         </div>
         <div class="list" id="list"></div>
         <div class="pager">
-          <span id="page-info">0 题</span>
+          <span id="page-info">共 0 题</span>
           <div class="actions">
-            <button type="button" class="ghost tiny" id="prev-page">上一页</button>
-            <button type="button" class="ghost tiny" id="next-page">下一页</button>
+            <button type="button" class="ghost tiny" id="expand-all">全部展开</button>
+            <button type="button" class="ghost tiny" id="collapse-all">全部收起</button>
           </div>
         </div>
       </section>
@@ -435,7 +477,6 @@
   </div>
   <script src="/exam-parse.js"></script>
   <script>
-    const PAGE_SIZE = 8;
     const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const typeName = { "0": "单选", "1": "多选", "2": "填空", "3": "判断", "4": "简答" };
     const rules = {
@@ -456,7 +497,7 @@
       questions: [],
       query: "",
       filterType: "all",
-      page: 1
+      open: new Set()
     };
 
     const fields = document.querySelector("#type-fields");
@@ -509,6 +550,11 @@
       return no ? `${no}. ` : "";
     };
 
+    const answerSummary = (item) => {
+      const answers = (item.answers || []).map((answer) => String(answer).trim()).filter(Boolean);
+      return answers.length ? answers.join(" / ") : "暂无答案";
+    };
+
     const questionCard = (item, extra = "", fallbackNo = "") => `
       <article class="item type-${escapeHtml(String(item.type || "0"))}">
         <div class="item-head">
@@ -519,6 +565,27 @@
         <div class="choices">${renderChoices(item)}</div>
       </article>
     `;
+
+    const bankItem = (item, index, fallbackNo) => {
+      const open = state.open.has(index);
+      const type = String(item.type || "0");
+      return `
+        <article class="item type-${escapeHtml(type)}${open ? " is-open" : ""}" data-index="${index}">
+          <div class="bank-row">
+            <span class="type-badge">${escapeHtml(typeName[item.type] || item.type || "")}</span>
+            <div class="bank-main">
+              <b class="bank-title">${escapeHtml(questionNo(item, fallbackNo) + item.title)}</b>
+              <span class="bank-answer">答案：${escapeHtml(answerSummary(item))}</span>
+            </div>
+            <div class="actions">
+              <button type="button" class="ghost tiny" data-toggle>${open ? "收起" : "展开"}</button>
+              <button type="button" class="danger tiny" data-index="${index}">删除</button>
+            </div>
+          </div>
+          <div class="choices">${renderChoices(item)}</div>
+        </article>
+      `;
+    };
 
     const parseInput = (text) => {
       const trimmed = text.trim();
@@ -650,10 +717,6 @@
 
     const renderList = () => {
       const rows = filteredQuestions();
-      const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-      if (state.page > pages) state.page = pages;
-      const start = (state.page - 1) * PAGE_SIZE;
-      const pageRows = rows.slice(start, start + PAGE_SIZE);
       const counts = { all: state.questions.length, "0": 0, "1": 0, "2": 0, "3": 0, "4": 0 };
       state.questions.forEach((item) => {
         const type = String(item.type || "0");
@@ -661,15 +724,15 @@
       });
       document.querySelector("#bank-tab").textContent = `当前题库 (${state.questions.length})`;
       document.querySelector("#page-info").textContent = rows.length
-        ? `第 ${state.page}/${pages} 页 · 本页 ${pageRows.length} · 筛选 ${rows.length}`
-        : "没有匹配的题目";
+        ? `共 ${rows.length} 题`
+        : (state.questions.length ? "没有匹配的题目" : "还没有题目");
       document.querySelectorAll("#type-filters button").forEach((button) => {
         const filter = button.dataset.filter;
         const label = filter === "all" ? "全部" : typeName[filter];
         button.textContent = `${label} ${counts[filter] ?? 0}`;
         button.setAttribute("aria-pressed", String(filter === state.filterType));
       });
-      list.innerHTML = pageRows.map(({ item, index }) => questionCard(item, `<button class="danger tiny" data-index="${index}">删除</button>`, index + 1)).join("")
+      list.innerHTML = rows.map(({ item, index }) => bankItem(item, index, index + 1)).join("")
         || `<p class="hint">${state.questions.length ? "没有匹配的题目。" : "还没有题目。"}</p>`;
     };
 
@@ -725,7 +788,6 @@
         state.preview = [];
         renderPreview();
         state.mode = "bank";
-        state.page = 1;
         renderMode();
       } catch (error) {
         setStatus(error.message, false);
@@ -823,7 +885,6 @@
 
     document.querySelector("#search").addEventListener("input", (event) => {
       state.query = event.target.value;
-      state.page = 1;
       renderList();
     });
 
@@ -831,39 +892,52 @@
       const button = event.target.closest("button[data-filter]");
       if (!button) return;
       state.filterType = button.dataset.filter;
-      state.page = 1;
       renderList();
     });
 
-    document.querySelector("#prev-page").addEventListener("click", () => {
-      if (state.page > 1) {
-        state.page -= 1;
-        renderList();
-      }
+    document.querySelector("#expand-all").addEventListener("click", () => {
+      filteredQuestions().forEach(({ index }) => state.open.add(index));
+      renderList();
     });
 
-    document.querySelector("#next-page").addEventListener("click", () => {
-      const pages = Math.max(1, Math.ceil(filteredQuestions().length / PAGE_SIZE));
-      if (state.page < pages) {
-        state.page += 1;
-        renderList();
-      }
+    document.querySelector("#collapse-all").addEventListener("click", () => {
+      filteredQuestions().forEach(({ index }) => state.open.delete(index));
+      renderList();
     });
 
     list.addEventListener("click", async (event) => {
-      const button = event.target.closest("button[data-index]");
-      if (!button) return;
-      const result = await (await fetch("/questions", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ index: Number(button.dataset.index) })
-      })).json();
-      if (result.code !== 200) {
-        setStatus(result.msg || "删除失败", false);
+      const remove = event.target.closest("button[data-index]");
+      if (remove) {
+        const deleted = Number(remove.dataset.index);
+        const result = await (await fetch("/questions", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ index: deleted })
+        })).json();
+        if (result.code !== 200) {
+          setStatus(result.msg || "删除失败", false);
+          return;
+        }
+        const next = new Set();
+        state.open.forEach((index) => {
+          if (index < deleted) next.add(index);
+          if (index > deleted) next.add(index - 1);
+        });
+        state.open = next;
+        setStatus("已删除", true);
+        await loadQuestions();
         return;
       }
-      setStatus("已删除", true);
-      await loadQuestions();
+      const row = event.target.closest(".bank-row");
+      if (!row) return;
+      const item = row.closest(".item[data-index]");
+      if (!item) return;
+      const index = Number(item.dataset.index);
+      if (state.open.has(index)) state.open.delete(index);
+      else state.open.add(index);
+      item.classList.toggle("is-open", state.open.has(index));
+      const toggle = item.querySelector("[data-toggle]");
+      if (toggle) toggle.textContent = state.open.has(index) ? "收起" : "展开";
     });
 
     renderMode();
