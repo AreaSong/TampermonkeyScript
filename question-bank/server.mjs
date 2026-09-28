@@ -8,6 +8,15 @@ const PORT = Number(process.env.PORT) || 8787;
 const ACCESS_KEY = process.env.QUESTION_BANK_KEY || "";
 const MATCH_THRESHOLD = 75;
 const DATA_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), "data", "questions.json");
+const ADMIN_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), "public", "admin.html");
+
+const html = (res, content) => {
+  res.writeHead(200, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store"
+  });
+  res.end(content);
+};
 
 const json = (res, status, payload) => {
   const body = JSON.stringify(payload);
@@ -15,7 +24,7 @@ const json = (res, status, payload) => {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, referer, u, t",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS"
   });
   res.end(body);
 };
@@ -173,10 +182,31 @@ const handleAdd = (questions, body) => {
   return { status: 200, payload: ok(next.answers, questions.length) };
 };
 
+const handleDelete = (questions, body) => {
+  const index = Number(body.index);
+  const title = String(body.title || "").trim();
+  if (Number.isInteger(index) && index >= 0 && index < questions.length) {
+    questions.splice(index, 1);
+  } else if (title) {
+    const key = normalizeTitle(title);
+    const next = questions.filter((item) => normalizeTitle(item.title) !== key);
+    questions.length = 0;
+    questions.push(...next);
+  } else {
+    return { status: 400, payload: miss("需要 title 或 index") };
+  }
+  saveQuestions(questions);
+  return { status: 200, payload: ok([], questions.length) };
+};
+
 const route = async (req, res) => {
   const url = new URL(req.url || "/", `http://${HOST}:${PORT}`);
   if (req.method === "OPTIONS") {
     json(res, 204, {});
+    return;
+  }
+  if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/admin")) {
+    html(res, fs.readFileSync(ADMIN_FILE, "utf8"));
     return;
   }
   if (req.method === "GET" && url.pathname === "/health") {
@@ -185,6 +215,10 @@ const route = async (req, res) => {
     return;
   }
   const questions = loadQuestions();
+  if (req.method === "GET" && url.pathname === "/questions") {
+    json(res, 200, questions);
+    return;
+  }
   if (req.method === "POST" && url.pathname === "/search") {
     const body = await readBody(req);
     json(res, 200, handleSearch(questions, body));
@@ -193,6 +227,12 @@ const route = async (req, res) => {
   if (req.method === "POST" && url.pathname === "/questions") {
     const body = await readBody(req);
     const result = handleAdd(questions, body);
+    json(res, result.status, result.payload);
+    return;
+  }
+  if (req.method === "DELETE" && url.pathname === "/questions") {
+    const body = await readBody(req);
+    const result = handleDelete(questions, body);
     json(res, result.status, result.payload);
     return;
   }
@@ -209,6 +249,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`本地题库已启动：http://${HOST}:${PORT}`);
+  console.log(`管理页：http://${HOST}:${PORT}/`);
   console.log("搜题：POST /search");
   console.log("加题：POST /questions");
   console.log("检查：GET  /health");

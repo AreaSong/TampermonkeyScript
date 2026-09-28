@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AreaSong
 // @namespace    AreaSong
-// @version      0.2.7
+// @version      0.2.8
 // @author       AreaSong
 // @description  🫧 目前已经支持的平台：【超星学习通「功能基本完成」】【知到智慧树「目前只支持答题」】。🚀 目前已经具有的功能包括：▶️视频自动观看，跳转下一个任务点，📄章节测试、作业自动完成，无答案自动保存，💯考试自动完成，自动切换、保存。使用脚本请进入对应平台的页面。
 // @license      MIT
@@ -468,20 +468,28 @@
       { name: "题库", url: "http://api.tikuhai.com/search", token: "" }
     ];
   };
-  const getAnswerFrom = async (question, api) => {
+  const getAnswerFrom = async (question, api, options = {}) => {
     var _a;
     const configStore = useConfigStore();
-    const headers = createApiHeaders(question.refer);
-    const data = JSON.stringify({
-      "question": question.title,
-      "options": question.optionsText,
-      "type": question.type,
-      "questionData": question.element.outerHTML,
-      "workType": question.workType,
-      "id": ((_a = question.refer.match(/courseId=(\d+)/)) == null ? void 0 : _a[1]) || "",
-      "key": api.token
-    });
-    await sleep(configStore.otherParams.params[0].value);
+    const localRequest = isLocalQuestionBank(api.url);
+    const headers = localRequest ? { "Content-Type": "application/json" } : createApiHeaders(question.refer);
+    let data = "";
+    try {
+      data = JSON.stringify({
+        question: question.title,
+        options: question.optionsText,
+        type: question.type,
+        workType: question.workType,
+        id: ((_a = question.refer.match(/courseId=(\d+)/)) == null ? void 0 : _a[1]) || "",
+        key: api.token,
+        ...localRequest ? {} : { questionData: question.element && question.element.outerHTML || "" }
+      });
+    } catch (error) {
+      return handleError("题目数据无法发送");
+    }
+    if (!options.skipDelay) {
+      await sleep(configStore.otherParams.params[0].value);
+    }
     return new Promise((resolve) => {
       _GM_xmlhttpRequest({
         url: withScriptInfoParams(api.url),
@@ -490,6 +498,10 @@
         data,
         timeout: 15e3,
         onload: (response) => {
+          if (response.status && (response.status < 200 || response.status >= 300)) {
+            resolve(handleError(localRequest ? `本地题库返回 ${response.status}` : `请求失败(${response.status})`));
+            return;
+          }
           try {
             const apiResponse = JSON.parse(response.responseText);
             resolve(apiResponse);
@@ -497,19 +509,58 @@
             resolve(handleError("解析出错"));
           }
         },
-        onerror: () => resolve(handleError("请求出错")),
-        ontimeout: () => resolve(handleError("请求超时"))
+        onerror: () => resolve(handleError(localRequest ? "连不上本地题库，请确认服务已启动，并允许油猴访问 127.0.0.1" : "请求出错")),
+        ontimeout: () => resolve(handleError(localRequest ? "本地题库超时" : "请求超时"))
       });
     });
   };
-  const getAnswer = async (question) => {
+  const getAnswer = async (question, options = {}) => {
+    let lastResult = handleError("请求失败");
     for (const api of getSearchApis()) {
-      const result = await getAnswerFrom(question, api);
+      const result = await getAnswerFrom(question, api, options);
+      lastResult = result;
       if (result.code !== 10003) {
         return result;
       }
     }
-    return handleError("请求失败");
+    return lastResult;
+  };
+  const applySearchResult = (question, answerData, options = {}) => {
+    const fillQuestion = options.fillQuestion || question.fillQuestion;
+    const addLog = options.addLog;
+    const label = options.indexLabel ? `第${options.indexLabel}道题` : "题目";
+    const answers = answerData && answerData.data && Array.isArray(answerData.data.answer) ? answerData.data.answer : [];
+    if (answerData.code === 200 && answers.some((answer) => String(answer).trim())) {
+      question.answer = answers;
+      question.answerStatus = "success";
+      if (fillQuestion)
+        fillQuestion(question);
+      if (addLog)
+        addLog(`${label}搜索成功`, "success");
+      return true;
+    }
+    const message = answerData.code === 200 ? "未查询到答案" : answerData.msg || "查询失败";
+    question.answerStatus = "error";
+    question.answer = [message];
+    if (addLog)
+      addLog(`${label}搜索失败：${message}`, "danger");
+    return false;
+  };
+  const retryQuestion = async (question) => {
+    if (!question || question.answerStatus === "searching")
+      return;
+    const logStore = useLogStore();
+    question.answerStatus = "searching";
+    question.answer = [];
+    const answerData = await getAnswer(question, { skipDelay: true });
+    applySearchResult(question, answerData, { addLog: logStore.addLog });
+  };
+  const retryFailedQuestions = async () => {
+    const questionStore = useQuestionStore();
+    const failedQuestions = questionStore.questionList.filter((question) => question.answerStatus === "error");
+    for (const question of failedQuestions) {
+      await retryQuestion(question);
+    }
   };
   const toAnnouncementItems = (notice) => {
     const content = notice.trim();
@@ -733,8 +784,19 @@
     },
     setup(__props) {
       const isTokenEditing = vue.ref(false);
+      const retryingAll = vue.ref(false);
       const configStore = useConfigStore();
       const getAnswerStatus = (question) => question.answerStatus ?? (question.answer.length ? "success" : "pending");
+      const hasFailed = vue.computed(() => (__props.questionList || []).some((question) => getAnswerStatus(question) === "error"));
+      const retryOne = (question) => retryQuestion(question);
+      const retryFailed = async () => {
+        retryingAll.value = true;
+        try {
+          await retryFailedQuestions();
+        } finally {
+          retryingAll.value = false;
+        }
+      };
       return (_ctx, _cache) => {
         const _component_el_button = vue.resolveComponent("el-button");
         const _component_el_input = vue.resolveComponent("el-input");
@@ -784,6 +846,18 @@
               _: 1
             }, 8, ["modelValue"])
           ]),
+          vue.createElementVNode("div", { class: "retry-bar" }, [
+            vue.createVNode(_component_el_button, {
+              size: "small",
+              disabled: !hasFailed.value || retryingAll.value,
+              onClick: retryFailed
+            }, {
+              default: vue.withCtx(() => [
+                vue.createTextVNode(vue.toDisplayString(retryingAll.value ? "重试中…" : "失败重试"), 1)
+              ]),
+              _: 1
+            }, 8, ["disabled"])
+          ]),
           vue.withDirectives(vue.createVNode(_component_el_input, {
             class: "token-input",
             modelValue: vue.unref(configStore).queryApis[0].token,
@@ -829,14 +903,29 @@
                   width: "215"
                 }, {
                   default: vue.withCtx((scope) => [
-                    vue.createElementVNode("div", {
-                      class: vue.normalizeClass(["answer-result", `answer-result--${getAnswerStatus(scope.row)}`])
-                    }, [
-                      getAnswerStatus(scope.row) === "pending" ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_3$1, "等待查询…")) : getAnswerStatus(scope.row) === "searching" ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_4$2, "正在查询答案…")) : (vue.openBlock(), vue.createElementBlock("div", {
-                        key: 2,
-                        innerHTML: scope.row.answer.join()
-                      }, null, 8, _hoisted_5))
-                    ], 2)
+                    vue.createElementVNode("div", { class: "answer-cell" }, [
+                      vue.createElementVNode("div", {
+                        class: vue.normalizeClass(["answer-result", `answer-result--${getAnswerStatus(scope.row)}`])
+                      }, [
+                        getAnswerStatus(scope.row) === "pending" ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_3$1, "等待查询…")) : getAnswerStatus(scope.row) === "searching" ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_4$2, "正在查询答案…")) : (vue.openBlock(), vue.createElementBlock("div", {
+                          key: 2,
+                          innerHTML: scope.row.answer.join()
+                        }, null, 8, _hoisted_5))
+                      ], 2),
+                      getAnswerStatus(scope.row) === "error" ? (vue.openBlock(), vue.createBlock(_component_el_button, {
+                        key: 3,
+                        class: "answer-retry",
+                        size: "small",
+                        type: "primary",
+                        link: "",
+                        onClick: ($event) => retryOne(scope.row)
+                      }, {
+                        default: vue.withCtx(() => [
+                          vue.createTextVNode("重试")
+                        ]),
+                        _: 2
+                      }, 1032, ["onClick"])) : vue.createCommentVNode("", true)
+                    ])
                   ]),
                   _: 1
                 })
@@ -5374,7 +5463,11 @@
         this.correctNum = 0;
         this.parseHtml();
         if (this.questions.length) {
-          this.questions = this.questions.map((question) => vue.reactive({ ...question, answerStatus: "pending" }));
+          this.questions = this.questions.map((question) => vue.reactive({
+            ...question,
+            answerStatus: "pending",
+            fillQuestion: (item) => this.fillQuestion(item)
+          }));
           this.questions.forEach((question) => this.addQuestion(question));
           this.addLog(`成功解析到${this.questions.length}个题目`, "primary");
           for (const [index, question] of this.questions.entries()) {
@@ -5384,18 +5477,8 @@
             const answerData = await getAnswer(question);
             if (!isCurrent())
               return 0;
-            if (answerData.code === 200 && answerData.data.answer.some((answer) => answer.trim())) {
-              question.answer = answerData.data.answer;
-              question.answerStatus = "success";
-              this.fillQuestion(question);
-              this.addLog(`第${index + 1}道题搜索成功`, "success");
-              this.addLog(`剩余次数:${answerData.data.num}`, "primary");
+            if (applySearchResult(question, answerData, { addLog: this.addLog, indexLabel: index + 1 }))
               this.correctNum += 1;
-            } else {
-              this.addLog(`第${index + 1}道题搜索失败，<a class="log-action-link" href="#" data-log-action="show-answer-tab">点击查看原因</a>`, "danger");
-              question.answerStatus = "error";
-              question.answer = [answerData.code === 200 ? "未查询到答案" : answerData.msg || "查询失败"];
-            }
           }
         } else
           this.addLog("未解析到题目，请进入正确页面", "danger");
@@ -5900,23 +5983,17 @@
         this.questions = [];
         this.parseHtml();
         if (this.questions.length) {
-          this.questions = this.questions.map((question) => vue.reactive({ ...question, answerStatus: "pending" }));
+          this.questions = this.questions.map((question) => vue.reactive({
+            ...question,
+            answerStatus: "pending",
+            fillQuestion: (item) => this.fillQuestion(item)
+          }));
           this.questions.forEach((question) => this.addQuestion(question));
           this.addLog(`成功解析到${this.questions.length}个题目`, "primary");
           for (const [index, question] of this.questions.entries()) {
             question.answerStatus = "searching";
             const answerData = await getAnswer(question);
-            if (answerData.code === 200 && answerData.data.answer.some((answer) => answer.trim())) {
-              question.answer = answerData.data.answer;
-              question.answerStatus = "success";
-              this.fillQuestion(question);
-              this.addLog(`第${index + 1}道题搜索成功`, "success");
-              this.addLog(`剩余次数:${answerData.data.num}`, "primary");
-            } else {
-              this.addLog(`第${index + 1}道题搜索失败，<a class="log-action-link" href="#" data-log-action="show-answer-tab">点击查看原因</a>`, "danger");
-              question.answerStatus = "error";
-              question.answer = [answerData.code === 200 ? "未查询到答案" : answerData.msg || "查询失败"];
-            }
+            applySearchResult(question, answerData, { addLog: this.addLog, indexLabel: index + 1 });
             await ((_b = (_a = this._document) == null ? void 0 : _a.querySelectorAll(".switch-btn-box > button")[1]) == null ? void 0 : _b.click());
           }
         } else
@@ -6424,7 +6501,7 @@
     return GM_addStyle(t), t;
   };
   cssLoader("ElementPlus");
-  const bankSelectCss = ".main-page .bank-select-wrap{margin:2px 0 10px}.main-page .bank-select-label{margin:0 0 6px;color:#4e5969;font-size:12px;line-height:18px}.main-page .bank-select{display:flex;width:100%}.main-page .bank-select .el-radio-button{flex:1}.main-page .bank-select .el-radio-button__inner{width:100%;padding:6px 8px;font-size:12px}";
+  const bankSelectCss = ".main-page .bank-select-wrap{margin:2px 0 10px}.main-page .bank-select-label{margin:0 0 6px;color:#4e5969;font-size:12px;line-height:18px}.main-page .bank-select{display:flex;width:100%}.main-page .bank-select .el-radio-button{flex:1}.main-page .bank-select .el-radio-button__inner{width:100%;padding:6px 8px;font-size:12px}.main-page .retry-bar{display:flex;justify-content:flex-end;margin:0 0 8px}.main-page .answer-cell{display:flex;flex-direction:column;align-items:flex-start;gap:4px}.main-page .answer-retry{padding:0;height:auto}";
   const layoutCss = '.main-page .guide-page{box-sizing:border-box;max-height:min(400px,calc(100vh - 160px));max-height:min(400px,calc(100dvh - 160px));overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;padding:2px 4px 2px 0;color:#4e5969;font-size:12px;line-height:1.7;scrollbar-width:thin;scrollbar-color:#c7d7eb transparent}.main-page .guide-page:focus-visible{outline:2px solid #176ae5;outline-offset:2px;border-radius:8px}.main-page .guide-header{margin:0 0 10px;padding:11px 12px;border:1px solid #d9e8fc;border-radius:9px;background:linear-gradient(120deg,#edf5ff 0%,#f8fbff 100%)}.main-page .guide-heading-row{display:flex;align-items:center;justify-content:space-between;gap:8px}.main-page .guide-title{margin:0;color:#174b94;font-size:15px;font-weight:600;line-height:1.6}.main-page .guide-tag{flex-shrink:0;padding:1px 7px;border:1px solid #d4e5fc;border-radius:20px;background-color:#fff;color:#2262b5;font-size:10px;line-height:18px}.main-page .guide-subtitle{margin:3px 0 0;color:#61758e;font-size:11px}.main-page .guide-list{display:grid;gap:8px;margin:0;padding:0;list-style:none}.main-page .guide-card{min-width:0;padding:10px;border:1px solid #e4eaf2;border-radius:8px;background-color:#fff}.main-page .guide-card-heading{display:flex;align-items:center;gap:8px;margin-bottom:6px}.main-page .guide-number{display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;height:24px;border-radius:7px;background-color:#eaf3ff;color:#176ae5;font-size:11px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}.main-page .guide-card-title{margin:0;color:#263a55;font-size:12px;font-weight:600;line-height:1.6}.main-page .guide-copy{margin:0;overflow-wrap:anywhere}.main-page .guide-flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:10px 0 0;padding:9px 4px 7px;border-radius:7px;background-color:#f3f7fd;list-style:none}.main-page .guide-flow-step{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;color:#3a5a83;font-size:10px;line-height:18px;text-align:center}.main-page .guide-flow-step+.guide-flow-step:before{position:absolute;top:8px;left:-5px;width:5px;height:5px;border-top:1px solid #9cb8da;border-right:1px solid #9cb8da;content:"";transform:rotate(45deg)}.main-page .guide-flow-number{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid #d5e4f8;border-radius:50%;background-color:#fff;color:#176ae5;font-size:11px;font-weight:600;line-height:1}.main-page{--app-font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";--el-font-family: var(--app-font-family);z-index:100003;position:fixed;color:#1f2329;font-family:var(--app-font-family)!important;font-size:14px;line-height:1.5715;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}.main-page *,.main-page input,.main-page button,.main-page textarea{font-family:var(--app-font-family)!important;letter-spacing:0}.main-page .el-card,.main-page .el-tabs,.main-page .el-text,.main-page .el-button,.main-page .el-input,.main-page .el-input__inner,.main-page .el-input-number,.main-page .el-table{font-family:var(--app-font-family)!important}.main-page .overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1001}.main-page .el-card{border:0}.main-page .card-header{display:flex;justify-content:space-between;flex-direction:row;align-items:center;margin:0;padding:0;cursor:move}.main-page .card-header .title{font-size:14px;display:flex;align-items:center;justify-content:center;font-weight:500}.main-page .warning-icon{margin-left:5px}.main-page .zoom-icon{cursor:pointer}.main-page .zoom-icon.is-spaced{margin-left:8px}.main-page .minus{margin:5px 10px -10px 0}.main-page .compact-divider{margin:0}.main-page .demo-tabs{display:initial}.main-page .el-card__header{background-color:#1f71e0;color:#fff;padding:7px 10px 7px 16px;margin:0}.main-page .el-card__body{padding:0 16px 20px}.main-page .el-tabs__nav-wrap:after{height:1px}.main-page .el-tabs__active-bar{background-color:#176ae5}.main-page .el-tabs__item{font-size:13px;height:34px}.main-page .el-tabs__item.is-top{font-weight:400;color:#4e5969;padding:0 8px 0 12px}.main-page .el-tabs__item.is-active{font-weight:500;color:#176ae5;padding:0 8px 0 12px}.main-page .script-home{padding-top:2px}.main-page .announcement-board{box-sizing:border-box;margin:2px 0 10px;padding:8px 10px;border:1px solid #bae0ff;border-radius:6px;background-color:#e6f4ff}.main-page .announcement-heading{display:flex;align-items:center;gap:6px;margin-bottom:4px;color:#0958d9;font-size:12px;font-weight:600;line-height:20px}.main-page .announcement-heading:before{content:"";width:6px;height:6px;flex:0 0 auto;border-radius:50%;background-color:#1677ff}.main-page .announcement-list{display:grid;gap:3px;margin:0;padding:0;list-style:none}.main-page .announcement-item{color:#1f2329;font-size:12px;line-height:20px;word-break:break-word}.main-page .log .el-text{font-weight:400;white-space:normal}.main-page .log-time{font-weight:400}.main-page .log-action-link{color:#176ae5;cursor:pointer;text-decoration:none}.main-page .log-action-link:hover{color:#409eff;text-decoration:underline}.main-page .log-divider{margin:0}.main-page .token-input,.main-page .question-list{font-size:12px}.main-page .token-label{border-radius:0}.main-page .question_table{width:625px}.main-page .answer-legend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:10px 2px 8px;font-size:11px;line-height:18px}.main-page .answer-legend>span{display:inline-flex;align-items:center;gap:5px}.main-page .answer-legend>span:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}.main-page .answer-result{line-height:1.7;overflow-wrap:anywhere}.main-page .answer-result--success{color:#15803d}.main-page .answer-result--searching{color:#a15c08}.main-page .answer-result--pending{color:#697586}.main-page .answer-result--error{color:#c73e38}.main-page .setting{margin-top:-8px;font-size:14px}.main-page .setting-section-title{font-size:13px}.main-page .setting-checkbox{margin-bottom:6px}.main-page .setting-number{margin-top:6px}.main-page .setting .el-form-item{margin-bottom:0}\n';
   const hookWebpack = () => {
     let originCall = _unsafeWindow.Function.prototype.call;

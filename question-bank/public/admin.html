@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AreaSong 题库</title>
+  <style>
+    :root {
+      --ink: #1b2430;
+      --muted: #5d6b7a;
+      --line: #d7deea;
+      --paper: #f6f1e8;
+      --card: #fffdf8;
+      --accent: #1f4e79;
+      --accent-2: #c45c26;
+      --ok: #1f7a4d;
+      --bad: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Songti SC", serif;
+      background:
+        radial-gradient(circle at top left, rgba(196, 92, 38, 0.08), transparent 28%),
+        linear-gradient(180deg, #efe6d8 0%, var(--paper) 180px);
+    }
+    main {
+      display: grid;
+      gap: 20px;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+    }
+    h1, h2, p, label, button, input, select, textarea, li {
+      font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+    }
+    h1 { margin: 0; font-size: 28px; letter-spacing: 0.04em; }
+    .lede { margin: 8px 0 0; color: var(--muted); }
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      gap: 18px;
+    }
+    .card {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--card);
+      box-shadow: 12px 16px 0 rgba(31, 78, 121, 0.05);
+    }
+    label { display: block; margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+    input, select, textarea {
+      width: 100%;
+      margin-bottom: 14px;
+      padding: 10px 12px;
+      border: 1px solid #cfd8e6;
+      border-radius: 10px;
+      color: var(--ink);
+      background: #fff;
+      font-size: 14px;
+    }
+    textarea { min-height: 92px; resize: vertical; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .actions { display: flex; gap: 10px; align-items: center; }
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 16px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.ghost { background: #ece7de; color: var(--ink); }
+    button.danger { background: var(--bad); }
+    .hint { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .status { min-height: 20px; font-size: 13px; }
+    .status.ok { color: var(--ok); }
+    .status.bad { color: var(--bad); }
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .examples button {
+      padding: 7px 10px;
+      background: #efe4d2;
+      color: var(--accent-2);
+      font-size: 12px;
+    }
+    .list { display: grid; gap: 10px; }
+    .item {
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+    .item b { font-size: 15px; }
+    .meta { color: var(--muted); font-size: 12px; }
+    @media (max-width: 860px) {
+      .grid, .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>AreaSong 题库</h1>
+      <p class="lede">在网页里填题保存即可。答案写正确选项的正文，不要只写 A / B / C。</p>
+    </header>
+    <section class="grid">
+      <form class="card" id="form">
+        <h2>添加题目</h2>
+        <p class="hint">点下面的例子会自动填入表单，改完再点保存。同一题干再保存一次会覆盖旧答案。</p>
+        <div class="examples">
+          <button type="button" data-example="single">单选例子</button>
+          <button type="button" data-example="multi">多选例子</button>
+          <button type="button" data-example="judge">判断例子</button>
+          <button type="button" data-example="blank">填空例子</button>
+        </div>
+        <label for="title">题干</label>
+        <textarea id="title" required placeholder="绿色植物在光照下释放氧气，主要是因为"></textarea>
+        <div class="row">
+          <div>
+            <label for="type">题型</label>
+            <select id="type">
+              <option value="0">单选</option>
+              <option value="1">多选</option>
+              <option value="2">填空</option>
+              <option value="3">判断</option>
+              <option value="4">简答</option>
+            </select>
+          </div>
+          <div>
+            <label for="options">全部选项，一行一个</label>
+            <textarea id="options" placeholder="呼吸作用&#10;光合作用&#10;蒸腾作用"></textarea>
+          </div>
+        </div>
+        <label for="answers">正确答案，一行一个</label>
+        <textarea id="answers" required placeholder="光合作用"></textarea>
+        <div class="actions">
+          <button type="submit">保存到题库</button>
+          <button type="reset" class="ghost">清空</button>
+          <p class="status" id="status"></p>
+        </div>
+      </form>
+      <section class="card">
+        <h2>当前题库 <span id="count"></span></h2>
+        <p class="hint">保存后脚本下次搜题会直接读到，不用重启服务。</p>
+        <div class="list" id="list"></div>
+      </section>
+    </section>
+  </main>
+  <script>
+    const examples = {
+      single: {
+        title: "绿色植物在光照下释放氧气，主要是因为",
+        type: "0",
+        options: "呼吸作用\n光合作用\n蒸腾作用\n渗透作用",
+        answers: "光合作用"
+      },
+      multi: {
+        title: "下列属于可再生资源的是",
+        type: "1",
+        options: "煤炭\n太阳能\n风能\n石油",
+        answers: "太阳能\n风能"
+      },
+      judge: {
+        title: "地球绕太阳公转一周大约是一年",
+        type: "3",
+        options: "正确\n错误",
+        answers: "正确"
+      },
+      blank: {
+        title: "中国的首都是",
+        type: "2",
+        options: "",
+        answers: "北京"
+      }
+    };
+
+    const lines = (value) => value.split(/\n/).map((item) => item.trim()).filter(Boolean);
+    const typeName = { "0": "单选", "1": "多选", "2": "填空", "3": "判断", "4": "简答" };
+    const status = document.querySelector("#status");
+    const list = document.querySelector("#list");
+    const count = document.querySelector("#count");
+
+    const setStatus = (text, ok) => {
+      status.textContent = text;
+      status.className = `status ${ok ? "ok" : "bad"}`;
+    };
+
+    const fillExample = (key) => {
+      const example = examples[key];
+      document.querySelector("#title").value = example.title;
+      document.querySelector("#type").value = example.type;
+      document.querySelector("#options").value = example.options;
+      document.querySelector("#answers").value = example.answers;
+      setStatus("已填入例子，可以改成你的题目再保存", true);
+    };
+
+    const render = async () => {
+      const response = await fetch("/questions");
+      const questions = await response.json();
+      count.textContent = `(${questions.length})`;
+      list.innerHTML = questions.map((item, index) => `
+        <article class="item">
+          <b>${item.title}</b>
+          <div class="meta">${typeName[item.type] || item.type} · 答案：${(item.answers || []).join(" / ")}</div>
+          <div class="actions">
+            <button class="danger" data-index="${index}">删除</button>
+          </div>
+        </article>
+      `).join("") || "<p class='hint'>还没有题目。</p>";
+    };
+
+    document.querySelectorAll("[data-example]").forEach((button) => {
+      button.addEventListener("click", () => fillExample(button.dataset.example));
+    });
+
+    document.querySelector("#form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const payload = {
+        title: document.querySelector("#title").value.trim(),
+        type: document.querySelector("#type").value,
+        options: lines(document.querySelector("#options").value),
+        answers: lines(document.querySelector("#answers").value)
+      };
+      const response = await fetch("/questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (!response.ok || result.code !== 200) {
+        setStatus(result.msg || "保存失败", false);
+        return;
+      }
+      setStatus("已保存", true);
+      event.target.reset();
+      await render();
+    });
+
+    list.addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-index]");
+      if (!button) return;
+      const response = await fetch("/questions", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ index: Number(button.dataset.index) })
+      });
+      const result = await response.json();
+      if (!response.ok || result.code !== 200) {
+        setStatus(result.msg || "删除失败", false);
+        return;
+      }
+      setStatus("已删除", true);
+      await render();
+    });
+
+    render().catch(() => setStatus("题库服务未启动", false));
+  </script>
+</body>
+</html>
