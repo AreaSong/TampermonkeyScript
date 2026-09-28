@@ -6,104 +6,190 @@
   <title>AreaSong 题库</title>
   <style>
     :root {
-      --ink: #1b2430;
-      --muted: #5d6b7a;
-      --line: #d7deea;
-      --paper: #f6f1e8;
-      --card: #fffdf8;
-      --accent: #1f4e79;
-      --accent-2: #c45c26;
-      --ok: #1f7a4d;
-      --bad: #b42318;
+      --ink: #303133;
+      --muted: #909399;
+      --line: #e4e7ed;
+      --paper: #f5f7fa;
+      --accent: #409eff;
+      --ok: #67c23a;
+      --bad: #f56c6c;
+      --type-0: #409eff;
+      --type-1: #e6a23c;
+      --type-2: #9b59b6;
+      --type-3: #67c23a;
+      --type-4: #13c2c2;
     }
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
     html, body { height: 100%; }
     body {
       margin: 0;
       overflow: hidden;
       color: var(--ink);
-      background:
-        radial-gradient(circle at top left, rgba(196, 92, 38, 0.08), transparent 22%),
-        linear-gradient(180deg, #efe6d8 0%, var(--paper) 160px);
-      font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      background: var(--paper);
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     }
     main {
       display: grid;
-      grid-template-rows: auto minmax(0, 1fr);
-      gap: 14px;
+      grid-template-rows: auto auto minmax(0, 1fr) minmax(180px, 32%);
       height: 100%;
-      max-width: none;
-      padding: 16px 18px 16px;
     }
-    h1 { margin: 0; font-size: 24px; letter-spacing: 0.04em; font-family: Palatino, "Songti SC", serif; }
-    h2 { margin: 0 0 10px; font-size: 18px; }
-    .lede { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
-    .toolbar, .actions, .type-tabs, .pager { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-    .toolbar { justify-content: space-between; }
-    .grid {
-      min-height: 0;
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 18px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    h1 { margin: 0; font-size: 18px; font-weight: 650; }
+    .lede { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+    .modebar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 18px 0;
+      background: #fff;
+    }
+    .mode-tabs, .toolbar, .actions, .type-tabs, .filters, .pager {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .mode-tabs button {
+      border: 0;
+      border-radius: 16px;
+      padding: 7px 16px;
+      background: transparent;
+      color: #606266;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .mode-tabs button[aria-pressed="true"] { background: #ecf5ff; color: var(--accent); }
+    button, .file-btn {
+      border: 0;
+      border-radius: 4px;
+      padding: 8px 16px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.ghost, .file-btn { background: #fff; color: #606266; border: 1px solid #dcdfe6; }
+    button.danger { background: var(--bad); color: #fff; }
+    button.tiny { padding: 4px 10px; font-size: 12px; }
+    button.link {
+      background: transparent;
+      color: var(--accent);
+      padding: 0;
+      font-weight: 500;
+    }
+    .workspace { min-height: 0; padding: 12px 18px; background: #fff; }
+    .split {
       display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr);
-      gap: 14px;
+      grid-template-columns: 1fr 1fr;
+      height: 100%;
+      border: 1px solid var(--line);
     }
-    .card {
+    .pane {
+      min-width: 0;
       min-height: 0;
       display: flex;
       flex-direction: column;
-      padding: 16px;
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: var(--card);
-      box-shadow: 10px 12px 0 rgba(31, 78, 121, 0.05);
+      position: relative;
+      background: #fff;
     }
-    .card-body { min-height: 0; overflow: auto; flex: 1; }
+    .pane + .pane { border-left: 1px solid var(--line); }
+    .pane-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #f2f3f5;
+      font-size: 15px;
+      font-weight: 650;
+    }
+    .pane-tools { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .count-zero { color: var(--bad); }
+    .count-ok { color: var(--ok); }
+    .pane-body { min-height: 0; flex: 1; position: relative; overflow: auto; }
+    .watermark::after {
+      content: attr(data-mark);
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 72px;
+      font-weight: 700;
+      color: rgba(0, 0, 0, 0.06);
+      pointer-events: none;
+    }
+    #batch-input {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      resize: none;
+      padding: 44px 14px 48px;
+      font: 14px/1.7 ui-monospace, SFMono-Regular, Menlo, "PingFang SC", sans-serif;
+      background: transparent;
+    }
+    #batch-input:focus { outline: 0; }
+    .detect {
+      position: absolute;
+      left: 14px;
+      top: 10px;
+      z-index: 1;
+      background: #fff;
+      border: 1px solid #dcdfe6;
+      color: #606266;
+      font-size: 12px;
+      padding: 4px 8px;
+    }
+    .preview { padding: 10px 12px 16px; }
+    .single { height: 100%; overflow: auto; padding: 4px 4px 12px; }
+    .type-tabs { margin: 0 0 12px; }
+    .type-tabs button[data-type="0"], .filters button[data-filter="0"] { color: var(--type-0); background: #ecf5ff; }
+    .type-tabs button[data-type="1"], .filters button[data-filter="1"] { color: #b88230; background: #fdf6ec; }
+    .type-tabs button[data-type="2"], .filters button[data-filter="2"] { color: var(--type-2); background: #f5eefb; }
+    .type-tabs button[data-type="3"], .filters button[data-filter="3"] { color: #529b2e; background: #f0f9eb; }
+    .type-tabs button[data-type="4"], .filters button[data-filter="4"] { color: var(--type-4); background: #e6fffb; }
+    .type-tabs button[aria-pressed="true"],
+    .filters button[aria-pressed="true"] { color: #fff; }
+    .type-tabs button[data-type="0"][aria-pressed="true"],
+    .filters button[data-filter="0"][aria-pressed="true"] { background: var(--type-0); }
+    .type-tabs button[data-type="1"][aria-pressed="true"],
+    .filters button[data-filter="1"][aria-pressed="true"] { background: var(--type-1); }
+    .type-tabs button[data-type="2"][aria-pressed="true"],
+    .filters button[data-filter="2"][aria-pressed="true"] { background: var(--type-2); }
+    .type-tabs button[data-type="3"][aria-pressed="true"],
+    .filters button[data-filter="3"][aria-pressed="true"] { background: var(--type-3); }
+    .type-tabs button[data-type="4"][aria-pressed="true"],
+    .filters button[data-filter="4"][aria-pressed="true"] { background: var(--type-4); }
+    .filters button { padding: 6px 10px; font-size: 12px; background: #f4f4f5; color: var(--ink); }
+    .filters button[data-filter="all"][aria-pressed="true"] { color: #fff; background: var(--accent); }
     label { display: block; margin: 0 0 6px; font-size: 13px; font-weight: 600; }
     input, textarea, select {
       width: 100%;
       margin: 0;
-      padding: 10px 12px;
-      border: 1px solid #cfd8e6;
-      border-radius: 10px;
+      padding: 8px 10px;
+      border: 1px solid #dcdfe6;
+      border-radius: 4px;
       background: #fff;
       color: var(--ink);
       font: inherit;
       font-size: 14px;
     }
     textarea { min-height: 72px; resize: vertical; }
-    textarea.code {
-      flex: 1;
-      min-height: 180px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 12px;
-      line-height: 1.5;
-      resize: none;
-    }
-    button, .file-btn {
-      border: 0;
-      border-radius: 999px;
-      padding: 9px 14px;
-      background: var(--accent);
-      color: #fff;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    button.ghost, .file-btn { background: #ece7de; color: var(--ink); }
-    button.danger { background: var(--bad); color: #fff; }
-    button.tiny { padding: 6px 10px; font-size: 12px; }
-    .hint { margin: 0 0 10px; color: var(--muted); font-size: 13px; line-height: 1.55; }
-    .status { min-height: 18px; margin: 8px 0 0; font-size: 13px; }
-    .status.ok { color: var(--ok); }
-    .status.bad { color: var(--bad); }
-    .type-tabs { margin: 0 0 12px; }
-    .type-tabs button { background: #efe4d2; color: var(--accent-2); }
-    .type-tabs button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+    .field { margin-bottom: 12px; }
     .rule {
       margin: 0 0 12px;
-      padding: 10px 12px;
-      border-left: 3px solid var(--accent-2);
-      border-radius: 0 12px 12px 0;
-      background: #f3ebe0;
-      color: #5a4633;
+      padding: 8px 10px;
+      background: #f4f4f5;
+      color: #606266;
       font-size: 13px;
       line-height: 1.55;
     }
@@ -116,114 +202,220 @@
     }
     .judge-row { display: flex; gap: 8px; margin-bottom: 12px; }
     .judge-row button[aria-pressed="true"] { background: var(--ok); }
-    .field { margin-bottom: 12px; }
-    .list {
-      display: grid;
-      gap: 8px;
-      align-content: start;
-      grid-auto-rows: 128px;
+    .bank {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 10px 18px 12px;
+      border-top: 1px solid var(--line);
+      background: #fff;
     }
+    .list { min-height: 0; overflow: auto; display: grid; gap: 8px; align-content: start; }
     .item {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      height: 128px;
-      overflow: hidden;
-      padding: 10px 12px;
+      gap: 8px;
+      padding: 12px;
       border: 1px solid var(--line);
-      border-radius: 12px;
+      border-radius: 4px;
       background: #fff;
     }
-    .item b {
-      display: -webkit-box;
-      overflow: hidden;
-      -webkit-line-clamp: 1;
-      -webkit-box-orient: vertical;
-      font-size: 14px;
-      line-height: 1.35;
-    }
-    .item .actions { margin-top: auto; }
-    .meta {
-      color: var(--muted);
+    .item.type-0 { border-left: 3px solid var(--type-0); }
+    .item.type-1 { border-left: 3px solid var(--type-1); }
+    .item.type-2 { border-left: 3px solid var(--type-2); }
+    .item.type-3 { border-left: 3px solid var(--type-3); }
+    .item.type-4 { border-left: 3px solid var(--type-4); }
+    .item-head { display: flex; gap: 8px; align-items: flex-start; }
+    .item-head b { flex: 1; min-width: 0; font-size: 14px; line-height: 1.55; font-weight: 600; }
+    .type-badge {
+      flex: none;
+      padding: 1px 8px;
+      border-radius: 2px;
       font-size: 12px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      font-weight: 700;
+      line-height: 18px;
+      color: #fff;
     }
-    .pager { justify-content: space-between; margin-top: 10px; color: var(--muted); font-size: 12px; }
-    @media (max-width: 1200px) {
+    .type-0 .type-badge { background: var(--type-0); }
+    .type-1 .type-badge { background: var(--type-1); }
+    .type-2 .type-badge { background: var(--type-2); }
+    .type-3 .type-badge { background: var(--type-3); }
+    .type-4 .type-badge { background: var(--type-4); }
+    .choices { display: grid; gap: 6px; }
+    .choice {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 7px 10px;
+      border: 1px solid #ebeef5;
+      border-radius: 4px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .choice.is-answer { border-color: #c2e7b0; background: #f0f9eb; color: #529b2e; }
+    .choice-letter {
+      flex: none;
+      width: 22px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #c0c4cc;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .choice.is-answer .choice-letter { border-color: var(--ok); background: var(--ok); color: #fff; }
+    .choice-text { min-width: 0; flex: 1; }
+    .essay-answer {
+      padding: 8px 10px;
+      border-left: 3px solid var(--ok);
+      background: #f0f9eb;
+      color: #529b2e;
+      font-size: 13px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+    .hint { margin: 8px 0; color: var(--muted); font-size: 13px; }
+    .status { min-height: 16px; margin: 6px 0 0; font-size: 12px; }
+    .status.ok { color: var(--ok); }
+    .status.bad { color: var(--bad); }
+    .pager { justify-content: space-between; margin-top: 8px; color: var(--muted); font-size: 12px; }
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      background: rgba(0, 0, 0, 0.35);
+      z-index: 20;
+      padding: 24px;
+    }
+    .modal.open { display: grid; }
+    .modal-card {
+      width: min(720px, 100%);
+      max-height: 80vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 4px;
+      padding: 18px 20px;
+    }
+    .modal-card h3 { margin: 0 0 12px; }
+    .help-box { background: #ecf5ff; padding: 12px 14px; margin: 0 0 14px; font-size: 13px; line-height: 1.7; }
+    .sample { font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
+    .sample b { color: var(--ok); }
+    @media (max-width: 900px) {
       body { overflow: auto; }
-      main { height: auto; }
-      .grid { grid-template-columns: 1fr 1fr; }
-      textarea.code { min-height: 260px; }
-    }
-    @media (max-width: 800px) {
-      .grid { grid-template-columns: 1fr; }
+      main { height: auto; grid-template-rows: auto; }
+      .split { grid-template-columns: 1fr; height: 70vh; }
+      .pane + .pane { border-left: 0; border-top: 1px solid var(--line); }
     }
   </style>
 </head>
 <body>
   <main>
-    <header class="toolbar">
+    <header class="topbar">
       <div>
         <h1>AreaSong 题库</h1>
-        <p class="lede">左边手录，中间贴 JSON，右边查题。题多了分页，不会把页面无限拉长。</p>
+        <p class="lede">左边输入试卷文本，右边即时检查。确认后点录入试题。</p>
       </div>
+      <p class="status" id="status"></p>
     </header>
-    <section class="grid">
-      <form class="card" id="form">
-        <h2>添加题目</h2>
-        <div class="card-body">
-          <div class="type-tabs" id="type-tabs">
-            <button type="button" data-type="0" aria-pressed="true">单选</button>
-            <button type="button" data-type="1">多选</button>
-            <button type="button" data-type="3">判断</button>
-            <button type="button" data-type="2">填空</button>
-            <button type="button" data-type="4">简答</button>
+    <div class="modebar">
+      <div class="mode-tabs" id="mode-tabs">
+        <button type="button" data-mode="batch" aria-pressed="true">批量导入</button>
+        <button type="button" data-mode="single">单题导入</button>
+      </div>
+      <button type="button" id="commit">录入试题</button>
+    </div>
+    <section class="workspace">
+      <div class="split" id="batch-view">
+        <section class="pane">
+          <div class="pane-head">
+            <span>输入区：</span>
+            <div class="pane-tools">
+              <button type="button" class="link" id="quick-input">快捷输入</button>
+              <button type="button" class="link" id="show-help">格式案例说明</button>
+              <button type="button" class="ghost tiny" id="clear-input">清空</button>
+            </div>
           </div>
-          <p class="rule" id="rule"></p>
-          <label for="title">题干</label>
-          <textarea id="title" class="field" required placeholder="把完整题干贴在这里"></textarea>
-          <div id="type-fields"></div>
+          <div class="pane-body watermark" id="input-pane" data-mark="输入区">
+            <button type="button" class="detect" id="detect">自动识别格式</button>
+            <textarea id="batch-input" spellcheck="false" placeholder="1.先查看格式说明后，再行录入
+2.支持题型：单选、多选、判断、填空、简答
+3.建议单次录入后先看检查区"></textarea>
+          </div>
+        </section>
+        <section class="pane">
+          <div class="pane-head">
+            <span>检查区：</span>
+            <span id="preview-count">总计输入 <b class="count-zero">0</b> 道</span>
+          </div>
+          <div class="pane-body watermark" id="preview-pane" data-mark="检查区">
+            <div class="preview" id="preview"></div>
+          </div>
+        </section>
+      </div>
+      <form class="single" id="form" hidden>
+        <div class="type-tabs" id="type-tabs">
+          <button type="button" data-type="0" aria-pressed="true">单选</button>
+          <button type="button" data-type="1">多选</button>
+          <button type="button" data-type="3">判断</button>
+          <button type="button" data-type="2">填空</button>
+          <button type="button" data-type="4">简答</button>
         </div>
+        <p class="rule" id="rule"></p>
+        <label for="title">题干</label>
+        <textarea id="title" class="field" placeholder="把完整题干贴在这里"></textarea>
+        <div id="type-fields"></div>
         <div class="actions">
           <button type="submit">保存到题库</button>
           <button type="button" class="ghost" id="reset">清空</button>
         </div>
-        <p class="status" id="status"></p>
       </form>
-      <section class="card">
-        <h2>模版 / 粘贴导入</h2>
-        <p class="hint">把模版复制给 AI，或把 AI 写好的 JSON 直接贴回来。导入前可先检查语法。</p>
-        <div class="actions" style="margin-bottom:10px;">
-          <button type="button" class="ghost" id="load-template">载入模版</button>
-          <button type="button" class="ghost" id="copy-json">复制当前 JSON</button>
-          <button type="button" class="ghost" id="copy-prompt">复制 AI 说明</button>
-          <label class="file-btn">选择文件<input id="import-file" type="file" accept=".json,application/json" hidden></label>
+    </section>
+    <section class="bank">
+      <h1>当前题库 <span id="count"></span></h1>
+      <div class="filters" id="type-filters">
+        <button type="button" data-filter="all" aria-pressed="true">全部</button>
+        <button type="button" data-filter="0">单选</button>
+        <button type="button" data-filter="1">多选</button>
+        <button type="button" data-filter="3">判断</button>
+        <button type="button" data-filter="2">填空</button>
+        <button type="button" data-filter="4">简答</button>
+      </div>
+      <input id="search" class="field" placeholder="搜索题干、选项或答案">
+      <div class="list" id="list"></div>
+      <div class="pager">
+        <span id="page-info">0 题</span>
+        <div class="actions">
+          <button type="button" class="ghost tiny" id="prev-page">上一页</button>
+          <button type="button" class="ghost tiny" id="next-page">下一页</button>
         </div>
-        <textarea class="code" id="json-input" spellcheck="false" placeholder='{"questions":[]}'></textarea>
-        <div class="actions" style="margin-top:10px;">
-          <button type="button" class="ghost" id="check-json">检查语法</button>
-          <button type="button" id="import-json">导入到题库</button>
-        </div>
-        <p class="status" id="json-status"></p>
-      </section>
-      <section class="card">
-        <h2>当前题库 <span id="count"></span></h2>
-        <input id="search" class="field" placeholder="搜索题干或答案">
-        <div class="card-body list" id="list"></div>
-        <div class="pager">
-          <span id="page-info">0 题</span>
-          <div class="actions">
-            <button type="button" class="ghost tiny" id="prev-page">上一页</button>
-            <button type="button" class="ghost tiny" id="next-page">下一页</button>
-          </div>
-        </div>
-      </section>
+      </div>
     </section>
   </main>
+  <div class="modal" id="help-modal">
+    <div class="modal-card">
+      <div class="toolbar" style="justify-content:space-between">
+        <h3>格式案例说明</h3>
+        <button type="button" class="ghost tiny" id="close-help">关闭</button>
+      </div>
+      <div class="help-box">
+        1. 试题需要有序号，支持：1. 或 1、<br>
+        2. 答案、解析后面要有冒号，如：答案：<br>
+        3. 选项后面需要点或顿号，如：A. 或 A、<br>
+        4. 答案另起一行，如：答案：A<br>
+        5. 填空题有多个答案用 | 隔开，如：春 | 夏 | 秋<br>
+        6. 判断题支持：正确、错误、对、错<br>
+        7. 简答题答案请写在一行
+      </div>
+      <div class="sample" id="help-sample"></div>
+    </div>
+  </div>
+  <script src="/exam-parse.js"></script>
   <script>
-    const PAGE_SIZE = 8;
+    const PAGE_SIZE = 4;
+    const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const typeName = { "0": "单选", "1": "多选", "2": "填空", "3": "判断", "4": "简答" };
     const rules = {
       "0": "单选：可添加任意个选项，点左侧圆点标记唯一正确答案。",
@@ -232,50 +424,117 @@
       "2": "填空：一空一行，空不够就点添加空。",
       "4": "简答：直接写参考答案全文。"
     };
-    const aiPrompt = `请把我给的题目整理成 JSON，只输出 JSON，不要解释。格式：
-{
-  "questions": [
-    {
-      "title": "题干原文",
-      "type": "0",
-      "options": ["选项正文1", "选项正文2"],
-      "answers": ["正确选项正文"]
-    }
-  ]
-}
-规则：
-- type：0单选，1多选，2填空，3判断，4简答
-- 单选/多选的 answers 必须是 options 里的原文，禁止只写 A/B/C
-- 多选 answers 可以有多项
-- 判断 options 固定为 ["正确","错误"]，answers 为 ["正确"] 或 ["错误"]
-- 填空 options 为 []，answers 按空的顺序
-- 简答 options 为 []，answers 为一整段文字`;
-
     const state = {
+      mode: "batch",
       type: "0",
       options: [{ text: "", correct: true }, { text: "", correct: false }],
       blanks: [""],
       judge: "正确",
       essay: "",
+      preview: [],
       questions: [],
       query: "",
+      filterType: "all",
       page: 1
     };
 
     const fields = document.querySelector("#type-fields");
     const status = document.querySelector("#status");
-    const jsonStatus = document.querySelector("#json-status");
-    const jsonInput = document.querySelector("#json-input");
     const list = document.querySelector("#list");
+    const batchInput = document.querySelector("#batch-input");
+    const preview = document.querySelector("#preview");
+    const inputPane = document.querySelector("#input-pane");
+    const previewPane = document.querySelector("#preview-pane");
     const escapeHtml = (value) => String(value)
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;");
 
-    const setStatus = (node, text, ok) => {
-      node.textContent = text;
-      node.className = `status ${ok ? "ok" : "bad"}`;
+    const setStatus = (text, ok) => {
+      status.textContent = text;
+      status.className = `status ${ok ? "ok" : "bad"}`;
+    };
+
+    const sameText = (left, right) => String(left).trim() === String(right).trim();
+
+    const renderChoices = (item) => {
+      const type = String(item.type || "0");
+      const answers = (item.answers || []).map((answer) => String(answer).trim()).filter(Boolean);
+      const options = (item.options || []).map((option) => String(option).trim()).filter(Boolean);
+      if (type === "4") return `<div class="essay-answer">${escapeHtml(answers.join("\n") || "暂无答案")}</div>`;
+      if (type === "2") {
+        return answers.map((answer, index) => `
+          <div class="choice is-answer">
+            <span class="choice-letter">${index + 1}</span>
+            <span class="choice-text">${escapeHtml(answer)}</span>
+          </div>
+        `).join("");
+      }
+      const rows = options.length ? options : answers;
+      return rows.map((option, index) => {
+        const correct = answers.some((answer) => sameText(answer, option));
+        return `
+          <div class="choice ${correct ? "is-answer" : ""}">
+            <span class="choice-letter">${LETTERS[index] || index + 1}</span>
+            <span class="choice-text">${escapeHtml(option)}</span>
+          </div>
+        `;
+      }).join("");
+    };
+
+    const questionCard = (item, extra = "") => `
+      <article class="item type-${escapeHtml(String(item.type || "0"))}">
+        <div class="item-head">
+          <span class="type-badge">${escapeHtml(typeName[item.type] || item.type || "")}</span>
+          <b>${escapeHtml(item.title)}</b>
+          ${extra}
+        </div>
+        <div class="choices">${renderChoices(item)}</div>
+      </article>
+    `;
+
+    const parseInput = (text) => {
+      const trimmed = text.trim();
+      if (!trimmed) return [];
+      if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        const parsed = JSON.parse(trimmed);
+        const items = Array.isArray(parsed) ? parsed : parsed.questions;
+        if (!Array.isArray(items)) throw new Error("JSON 需要 questions 数组");
+        return items;
+      }
+      return ExamParse.parseExamText(trimmed);
+    };
+
+    const renderPreview = () => {
+      const filled = Boolean(batchInput.value.trim());
+      inputPane.classList.toggle("watermark", !filled);
+      previewPane.classList.toggle("watermark", !state.preview.length);
+      const count = document.querySelector("#preview-count");
+      count.innerHTML = `总计输入 <b class="${state.preview.length ? "count-ok" : "count-zero"}">${state.preview.length}</b> 道`;
+      preview.innerHTML = state.preview.map((item) => questionCard(item)).join("")
+        || (filled ? "<p class='hint'>没有识别到题目，点「格式案例说明」对照格式。</p>" : "");
+    };
+
+    const detectFormat = () => {
+      try {
+        state.preview = parseInput(batchInput.value);
+        renderPreview();
+        setStatus(state.preview.length ? `已识别 ${state.preview.length} 道题` : "没有识别到题目", Boolean(state.preview.length));
+      } catch (error) {
+        state.preview = [];
+        renderPreview();
+        setStatus(error.message, false);
+      }
+    };
+
+    const renderMode = () => {
+      document.querySelectorAll("#mode-tabs button").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.mode === state.mode));
+      });
+      document.querySelector("#batch-view").hidden = state.mode !== "batch";
+      document.querySelector("#form").hidden = state.mode !== "single";
+      document.querySelector("#commit").hidden = state.mode !== "batch";
     };
 
     const renderTabs = () => {
@@ -354,6 +613,7 @@
     const filteredQuestions = () => {
       const query = state.query.trim().toLowerCase();
       return state.questions.map((item, index) => ({ item, index })).filter(({ item }) => {
+        if (state.filterType !== "all" && String(item.type) !== state.filterType) return false;
         if (!query) return true;
         return `${item.title} ${(item.options || []).join(" ")} ${(item.answers || []).join(" ")}`.toLowerCase().includes(query);
       });
@@ -365,21 +625,23 @@
       if (state.page > pages) state.page = pages;
       const start = (state.page - 1) * PAGE_SIZE;
       const pageRows = rows.slice(start, start + PAGE_SIZE);
+      const counts = { all: state.questions.length, "0": 0, "1": 0, "2": 0, "3": 0, "4": 0 };
+      state.questions.forEach((item) => {
+        const type = String(item.type || "0");
+        if (counts[type] != null) counts[type] += 1;
+      });
       document.querySelector("#count").textContent = `(${state.questions.length})`;
       document.querySelector("#page-info").textContent = rows.length
         ? `第 ${state.page}/${pages} 页 · 本页 ${pageRows.length} · 筛选 ${rows.length}`
         : "没有匹配的题目";
-      list.innerHTML = pageRows.map(({ item, index }) => {
-        const options = (item.options || []).map((option) => String(option).trim()).filter(Boolean);
-        return `
-        <article class="item">
-          <b>${escapeHtml(item.title)}</b>
-          <div class="meta">选项：${escapeHtml(options.length ? options.join(" / ") : "无")}</div>
-          <div class="meta">${typeName[item.type] || item.type} · 答案：${escapeHtml((item.answers || []).join(" / "))}</div>
-          <div class="actions"><button class="danger tiny" data-index="${index}">删除</button></div>
-        </article>
-      `;
-      }).join("") || "<p class='hint'>还没有题目。</p>";
+      document.querySelectorAll("#type-filters button").forEach((button) => {
+        const filter = button.dataset.filter;
+        const label = filter === "all" ? "全部" : typeName[filter];
+        button.textContent = `${label} ${counts[filter] ?? 0}`;
+        button.setAttribute("aria-pressed", String(filter === state.filterType));
+      });
+      list.innerHTML = pageRows.map(({ item, index }) => questionCard(item, `<button class="danger tiny" data-index="${index}">删除</button>`)).join("")
+        || `<p class="hint">${state.questions.length ? "没有匹配的题目。" : "还没有题目。"}</p>`;
     };
 
     const loadQuestions = async () => {
@@ -387,49 +649,64 @@
       renderList();
     };
 
-    const inspectJson = (text) => {
-      let parsed;
-      try {
-        parsed = JSON.parse(text);
-      } catch (error) {
-        throw new Error(`JSON 语法错误：${error.message}`);
-      }
-      const items = Array.isArray(parsed) ? parsed : parsed && parsed.questions;
-      if (!Array.isArray(items) || !items.length) throw new Error("需要非空数组，或 { questions: [...] }");
-      items.forEach((item, index) => {
-        if (!item || typeof item !== "object") throw new Error(`第 ${index + 1} 题不是对象`);
-        if (!String(item.title || item.question || "").trim()) throw new Error(`第 ${index + 1} 题缺少 title`);
-        const answers = item.answers || item.answer;
-        if (!Array.isArray(answers) || !answers.some((answer) => String(answer).trim())) {
-          throw new Error(`第 ${index + 1} 题缺少 answers`);
-        }
-        const type = String(item.type ?? "");
-        if (type && !["0", "1", "2", "3", "4"].includes(type)) {
-          throw new Error(`第 ${index + 1} 题 type 只能是 0-4`);
-        }
-        if ((type === "0" || type === "1") && (!Array.isArray(item.options) || item.options.length < 2)) {
-          throw new Error(`第 ${index + 1} 题选项至少 2 个`);
-        }
-      });
-      return parsed;
-    };
-
-    const loadTemplate = async () => {
-      const template = await (await fetch("/template.json")).json();
-      jsonInput.value = `${JSON.stringify(template, null, 2)}\n`;
-      setStatus(jsonStatus, `已载入模版，共 ${template.questions.length} 道示例`, true);
-    };
-
-    const importParsed = async (parsed) => {
+    const importQuestions = async (items) => {
       const result = await (await fetch("/questions/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed)
+        body: JSON.stringify({ questions: items })
       })).json();
       if (result.code !== 200) throw new Error(result.msg || "导入失败");
-      setStatus(jsonStatus, result.msg || "导入完成", true);
+      setStatus(result.msg || "导入完成", true);
       await loadQuestions();
     };
+
+    document.querySelector("#mode-tabs").addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-mode]");
+      if (!button) return;
+      state.mode = button.dataset.mode;
+      renderMode();
+    });
+
+    document.querySelector("#quick-input").addEventListener("click", () => {
+      batchInput.value = ExamParse.SAMPLE_TEXT;
+      detectFormat();
+    });
+
+    document.querySelector("#clear-input").addEventListener("click", () => {
+      batchInput.value = "";
+      state.preview = [];
+      renderPreview();
+      setStatus("", true);
+    });
+
+    document.querySelector("#detect").addEventListener("click", detectFormat);
+    batchInput.addEventListener("input", () => {
+      inputPane.classList.toggle("watermark", !batchInput.value.trim());
+    });
+
+    document.querySelector("#commit").addEventListener("click", async () => {
+      try {
+        if (!state.preview.length) detectFormat();
+        if (!state.preview.length) throw new Error("检查区还没有题目");
+        await importQuestions(state.preview);
+        batchInput.value = "";
+        state.preview = [];
+        renderPreview();
+      } catch (error) {
+        setStatus(error.message, false);
+      }
+    });
+
+    document.querySelector("#show-help").addEventListener("click", () => {
+      document.querySelector("#help-sample").innerHTML = `<b>试题案例</b>\n${escapeHtml(ExamParse.SAMPLE_TEXT)}`;
+      document.querySelector("#help-modal").classList.add("open");
+    });
+    document.querySelector("#close-help").addEventListener("click", () => {
+      document.querySelector("#help-modal").classList.remove("open");
+    });
+    document.querySelector("#help-modal").addEventListener("click", (event) => {
+      if (event.target.id === "help-modal") event.currentTarget.classList.remove("open");
+    });
 
     document.querySelector("#type-tabs").addEventListener("click", (event) => {
       const button = event.target.closest("button[data-type]");
@@ -494,69 +771,29 @@
           body: JSON.stringify(collectPayload())
         })).json();
         if (result.code !== 200) throw new Error(result.msg || "保存失败");
-        setStatus(status, "已保存", true);
+        setStatus("已保存", true);
         resetForm();
         await loadQuestions();
       } catch (error) {
-        setStatus(status, error.message, false);
+        setStatus(error.message, false);
       }
     });
 
     document.querySelector("#reset").addEventListener("click", () => {
       resetForm();
-      setStatus(status, "", true);
-    });
-
-    document.querySelector("#load-template").addEventListener("click", () => {
-      loadTemplate().catch((error) => setStatus(jsonStatus, error.message, false));
-    });
-
-    document.querySelector("#copy-json").addEventListener("click", async () => {
-      if (!jsonInput.value.trim()) {
-        setStatus(jsonStatus, "先载入模版或粘贴 JSON", false);
-        return;
-      }
-      await navigator.clipboard.writeText(jsonInput.value);
-      setStatus(jsonStatus, "已复制当前 JSON", true);
-    });
-
-    document.querySelector("#copy-prompt").addEventListener("click", async () => {
-      await navigator.clipboard.writeText(aiPrompt);
-      setStatus(jsonStatus, "已复制给 AI 的说明", true);
-    });
-
-    document.querySelector("#check-json").addEventListener("click", () => {
-      try {
-        const parsed = inspectJson(jsonInput.value);
-        const count = Array.isArray(parsed) ? parsed.length : parsed.questions.length;
-        setStatus(jsonStatus, `语法正确，共 ${count} 道题，可以导入`, true);
-      } catch (error) {
-        setStatus(jsonStatus, error.message, false);
-      }
-    });
-
-    document.querySelector("#import-json").addEventListener("click", async () => {
-      try {
-        await importParsed(inspectJson(jsonInput.value));
-      } catch (error) {
-        setStatus(jsonStatus, error.message, false);
-      }
-    });
-
-    document.querySelector("#import-file").addEventListener("change", async (event) => {
-      const file = event.target.files[0];
-      event.target.value = "";
-      if (!file) return;
-      try {
-        jsonInput.value = await file.text();
-        await importParsed(inspectJson(jsonInput.value));
-      } catch (error) {
-        setStatus(jsonStatus, error.message, false);
-      }
+      setStatus("", true);
     });
 
     document.querySelector("#search").addEventListener("input", (event) => {
       state.query = event.target.value;
+      state.page = 1;
+      renderList();
+    });
+
+    document.querySelector("#type-filters").addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-filter]");
+      if (!button) return;
+      state.filterType = button.dataset.filter;
       state.page = 1;
       renderList();
     });
@@ -585,16 +822,17 @@
         body: JSON.stringify({ index: Number(button.dataset.index) })
       })).json();
       if (result.code !== 200) {
-        setStatus(status, result.msg || "删除失败", false);
+        setStatus(result.msg || "删除失败", false);
         return;
       }
-      setStatus(status, "已删除", true);
+      setStatus("已删除", true);
       await loadQuestions();
     });
 
+    renderMode();
     renderTypeFields();
-    loadTemplate().catch(() => setStatus(jsonStatus, "模版加载失败", false));
-    loadQuestions().catch(() => setStatus(status, "题库服务未启动", false));
+    renderPreview();
+    loadQuestions().catch(() => setStatus("题库服务未启动", false));
   </script>
 </body>
 </html>

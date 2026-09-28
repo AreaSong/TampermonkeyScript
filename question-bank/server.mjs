@@ -280,6 +280,14 @@ const route = async (req, res) => {
     json(res, 204, {});
     return;
   }
+  if (req.method === "GET" && url.pathname === "/exam-parse.js") {
+    res.writeHead(200, {
+      "Content-Type": "text/javascript; charset=utf-8",
+      "Cache-Control": "no-store"
+    });
+    res.end(fs.readFileSync(path.join(path.dirname(ADMIN_FILE), "exam-parse.js")));
+    return;
+  }
   if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/admin")) {
     html(res, fs.readFileSync(ADMIN_FILE, "utf8"));
     return;
